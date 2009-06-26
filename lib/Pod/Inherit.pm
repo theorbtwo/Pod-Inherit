@@ -6,7 +6,7 @@ use MRO::Compat;
 use Sub::Identify;
 use Pod::Compiler;
 use Path::Class;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -199,8 +199,10 @@ sub write_pod {
         my ($outfh, $oldperm);
         if (not open $outfh, '>', $output_filename) {
           if ($!{EACCES} and $self->{force_permissions} ) {
+            unlink $output_filename;
+            $output_filename = Path::Class::File->new($output_filename);
             $oldperm = (stat($output_filename->dir))[2];
-            chmod $oldperm & 0200, $output_filename->dir 
+            chmod $oldperm | 0200, $output_filename->dir 
               or die "Can't chmod ".$output_filename->dir." (or write into it)";
             open $outfh, '>', $output_filename or die "Can't open $output_filename for output (even after chmodding it's parent directory): $!";
           } else {
