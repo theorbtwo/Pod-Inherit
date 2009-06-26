@@ -1,0 +1,13 @@
+0.03
+ - Make Moose test much less specific.  (Should fix FAILs from test
+   reporters.)
+ - Add use warnings/strict to the pm files under t/, to quiet
+   Test::Kwalitee.
+
+0.02
+ - Version bump because of a stupid error uploading to PAUSE... the kind of 
+   stupid error that you can't just fix and reupload, because PAUSE doesn't
+   let you overwrite files.   
+
+0.01
+ - First version
