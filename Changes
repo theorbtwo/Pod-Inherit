@@ -1,3 +1,7 @@
+0.05
+ - Try harder to avoid reloading the code being documented.
+ - Make doc maps actually work.
+
 0.04
  - Add force_permissions option (with documentation but not test, yet, fixme).
 

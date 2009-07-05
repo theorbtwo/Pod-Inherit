@@ -1,3 +1,6 @@
+t/lib/InlineSubConfig.pm
+t/lib/InlineBaseConfig.pm
+t/golden/InlineSubConfig.pod
 MANIFEST.SKIP
 .shipit
 t/auxlib/ClassC3Sub.pod
@@ -35,7 +38,6 @@ t/auxlib/MooseSub.pm
 t/golden/_NotShownSubClass.pod
 t/golden/AuthorNoPod.pod
 t/golden/Deep/Name/Space/Sub.pod
-t/golden/NoPodBaseClass.pod.was
 t/golden/OverloadSubClass.pod
 t/golden/OverrideDoubleSubClass.pod
 t/golden/PodWithAuthor.pod
