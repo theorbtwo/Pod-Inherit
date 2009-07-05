@@ -1,3 +1,7 @@
+0.06
+ - Yet another go at not reloading files.
+ - Make error messages on unloadable files somewhat less verbose.
+
 0.05
  - Try harder to avoid reloading the code being documented.
  - Make doc maps actually work.

@@ -6,7 +6,7 @@ use Data::Dump::Streamer 'Dump';
 use Sub::Identify;
 use Pod::Compiler;
 use Path::Class;
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 NAME
 
