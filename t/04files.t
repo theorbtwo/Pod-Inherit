@@ -18,6 +18,7 @@ my @tests = (
              ['SkipUnderscoreSubClass', '"use base", with an _method in the base'],
              ['OverrideDoubleSubClass', '"use base", three levels, the sub being defined on 1st and 2nd'],
              ['Deep/Name/Space/Sub', '"use base", with a nice deep namespace'],
+             ['InlineSubConfig', 'inline config, skip_underscored + class_map'],
             );
 
 ## All these test the output that lands in the same dir as the input
