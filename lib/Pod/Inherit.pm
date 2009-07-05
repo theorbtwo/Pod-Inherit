@@ -2,11 +2,11 @@ package Pod::Inherit;
 use warnings;
 use strict;
 use MRO::Compat;
-#use Data::Dump::Streamer 'Dump';
+use Data::Dump::Streamer 'Dump';
 use Sub::Identify;
 use Pod::Compiler;
 use Path::Class;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -167,7 +167,7 @@ sub write_pod {
   while (@targets) {
     my ($target, $origtarget) = @{shift @targets};
     
-    print "target=$target origtarget=$origtarget \n";
+#    print "target=$target origtarget=$origtarget \n";
     if (-d $target) {
       #print "-d\n";
       for my $newtarget (glob "$target/*") {
@@ -176,27 +176,28 @@ sub write_pod {
       next;
     }
     if ($target =~ m/\.pm$/) {
-      print "\n";
+#      print "\n";
       my $output_filename = Path::Class::File->new($target);
       if ($self->{out_dir}) {
         my $src_rel_orig = Path::Class::File->new($target)->relative($origtarget);
-        print "src_rel_orig: $src_rel_orig\n";
+#        print "src_rel_orig: $src_rel_orig\n";
         $output_filename = $src_rel_orig->absolute($self->{out_dir});
       }
       my $ret = $output_filename->dir->mkpath;
-      print "mkpath return $ret";
+#      print "mkpath return $ret";
       $output_filename =~ s/\.pm$/.pod/g;
-      print "Output filename: $output_filename\n";
+#      print "Output filename: $output_filename\n";
       
       if($self->is_ours($output_filename)) {
         my $allpod = $self->create_pod($target);
         # Don't create the output file if there would be nothing in it!
         if (!$allpod) {
-          print "Not creating empty file $output_filename\n";
+#          warn "Not creating empty file $output_filename\n";
           next;
         }
         
         my ($outfh, $oldperm);
+        print "Writing $output_filename\n";
         if (not open $outfh, '>', $output_filename) {
           if ($!{EACCES} and $self->{force_permissions} ) {
             unlink $output_filename;
@@ -250,34 +251,41 @@ sub create_pod {
   
   my $classname = $self->filename_to_classname($src);
   if (!$classname) {
-    print "Couldn't find any package statement in $src\n";
+#    print "Couldn't find any package statement in $src\n";
     return;
   }
   $tt_stash->{classname}=$classname;
 
-  my $require_src;
-  if (Path::Class::Dir->new($INC[0])->subsumes($src)) {
-    $require_src = Path::Class::File->new($src)->relative($INC[0]);
-  } else {
-    $require_src = $src;
-  }
-  # If $require_src is a Path::Class::File, stringify it now, instead of in
-  # require, because doing it there seems to tickle a Devel::Cover bug.
-  $require_src = "$require_src";
+  # What we had here was hack on top of hack on top of hack, and still didn't work.
+  # Fuckit.  Rewrite.
+  local $|=1;
+  my $class_as_filename = $classname;
+  $class_as_filename =~ s!::!/!g;
+  $class_as_filename .= ".pm";
 
-  # require checks the *keys* of %INC.  We want to check the *values*,
-  # which are full pathnames.  (Don't ask me why require doesn't.  I
-  # certianly don't know.)
-  if(!grep { $_ eq $src } values %INC) { 
-    if (!eval {require $require_src; 1;}) {
-      warn "Couldn't load file $src ($require_src): $@";
+  my $old_sig_warn = $SIG{__WARN__};
+  local $SIG{__WARN__} = sub {
+    my ($warning) = @_;
+    $warning = "While working on $src: $warning";
+    if ($old_sig_warn) {
+      $old_sig_warn->($warning);
+    } else {
+      warn $warning;
+    }
+  };
+
+  # Just like require, except without that pesky checking @INC thing,
+  # but making sure we put the "right" thing in %INC.
+  if (!exists $INC{$class_as_filename}) {
+    if (!do $src) {
+      my $err = $@;
+      $err =~ s/ \(\@INC contains: .*\)//;
+      print STDERR "Couldn't autogenerate documentation for $src: $err\n";
       return;
     }
   }
-
-  #print "After loading $src\n";
-  #use Data::Dump::Streamer 'Dump';
-  #Dump \%INC;
+  $INC{$class_as_filename} = $src;
+  
   
   my @isa_flattened = @{mro::get_linear_isa($classname)};
   
@@ -288,7 +296,7 @@ sub create_pod {
   }
   # We can't possibly find anything.  Just short-circuit and save ourselves a lot of trouble.
   if (!@isa_flattened) {
-    print "No parent classes\n";
+#    print "No parent classes\n";
     return;
   }
   $tt_stash->{isa_flattened} = \@isa_flattened;
@@ -338,7 +346,7 @@ sub create_pod {
         # (I loose track of exactly how...)
         # Strange, considering O_LARGEFILE clearly *is* a subroutine...
         if ($@ =~ /Not a subroutine reference/) {
-          print "Got not a subref for $globname in $parent_class; it is probbaly imported accidentally.\n";
+#          print "Got not a subref for $globname in $parent_class; it is probbaly imported accidentally.\n";
           $exists=0;
         } else {
           die "While checking if $parent_class $globname is a sub: $@";
@@ -421,7 +429,7 @@ __END_POD__
   # Rather annoyingly, we can't just stick a bunch of POD already marked up into a Pod::Compile; it needs an object.
   $new_pod = bless {_text => $new_pod}, 'Pod::superliteral';
 
-  my $pod = Pod::Compiler::pod_compile($src)
+  my $pod = Pod::Compiler::pod_compile({ -warnings => 0, -errors => 0 }, $src)
     or die "Couldn't parse existing pod in $src";
   
   my $insertion_point;
@@ -438,7 +446,7 @@ __END_POD__
       $before = 1;
       next;
     } else {
-      print "Found head $text, going after that section\n";
+#      print "Found head $text, going after that section\n";
       last;
     }
   } 
@@ -525,7 +533,7 @@ sub is_ours {
             warn "$outfn already exists, and it doesn't look like we generated it.  Skipping this file";
             return 0;
         }
-        print "Output file already exists, but seems to be one of ours, overwriting it\n";
+#        print "Output file already exists, but seems to be one of ours, overwriting it\n";
     }
 
     return 1;
