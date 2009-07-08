@@ -2,7 +2,13 @@ package Pod::Inherit;
 use warnings;
 use strict;
 use MRO::Compat;
-use Data::Dump::Streamer 'Dump';
+our $DEBUG;
+BEGIN {
+  if ($DEBUG) {
+    require Data::Dump::Streamer;
+    Data::Dump::Streamer->import('Dump');
+  }
+}
 use Sub::Identify;
 use Pod::Compiler;
 use Path::Class;
@@ -167,7 +173,9 @@ sub write_pod {
   while (@targets) {
     my ($target, $origtarget) = @{shift @targets};
     
-#    print "target=$target origtarget=$origtarget \n";
+    if ($DEBUG) {
+      print "target=$target origtarget=$origtarget \n";
+    }
     if (-d $target) {
       #print "-d\n";
       for my $newtarget (glob "$target/*") {
@@ -176,28 +184,26 @@ sub write_pod {
       next;
     }
     if ($target =~ m/\.pm$/) {
-#      print "\n";
       my $output_filename = Path::Class::File->new($target);
       if ($self->{out_dir}) {
         my $src_rel_orig = Path::Class::File->new($target)->relative($origtarget);
-#        print "src_rel_orig: $src_rel_orig\n";
         $output_filename = $src_rel_orig->absolute($self->{out_dir});
       }
       my $ret = $output_filename->dir->mkpath;
-#      print "mkpath return $ret";
       $output_filename =~ s/\.pm$/.pod/g;
-#      print "Output filename: $output_filename\n";
       
       if($self->is_ours($output_filename)) {
         my $allpod = $self->create_pod($target);
         # Don't create the output file if there would be nothing in it!
         if (!$allpod) {
-#          warn "Not creating empty file $output_filename\n";
+          # warn "Not creating empty file $output_filename\n";
           next;
         }
         
         my ($outfh, $oldperm);
-        print "Writing $output_filename\n";
+        if ($DEBUG) {
+          print "Writing $output_filename\n";
+        }
         if (not open $outfh, '>', $output_filename) {
           if ($!{EACCES} and $self->{force_permissions} ) {
             unlink $output_filename;
@@ -599,6 +605,15 @@ listing methods in that module, use the following snippet in your
 code:
 
   our %_pod_inherit_config = ( skip_underscored => 0 );
+
+=head2 $DEBUG
+
+In order to get verbose debug information, simply set
+C<$Pod::Inherit::DEBUG> to 1.  Please do this B<before> loading
+Pod::Inherit, so that the requisite debugging modules can be loaded.
+(Which aren't in the dependencies list, in order to keep the
+dependencies list down slightly.  You can figure them out, it's not
+hard.)
 
 =head1 AUTHOR
 
