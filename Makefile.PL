@@ -18,15 +18,16 @@ WriteMakefile(
               LICENSE       => 'perl',
               PREREQ_PM     => {
                                 'MRO::Compat' => 0,
-                                'Sub::Identify' => 0,
-                                'Pod::Compiler' => 0,
                                 'Path::Class' => 0,
-                                'Test::Exception' => 0,
+                                'Pod::Compiler' => 0,
+                                'Sub::Identify' => 0,
+                                # Test dependencies below this boundry,
+                                # please.
                                 'Test::Differences' => 0,
-                                'Test::Pod::Coverage' => 0,
-                                'Test::NoWarnings' => 0,
+                                'Test::Exception' => 0,
                                 'Test::More' => 0,
+                                'Test::NoWarnings' => 0,
+                                'Test::Pod::Coverage' => 0,
                                 'Test::Pod' => 0,
-                                
                                },
              );
