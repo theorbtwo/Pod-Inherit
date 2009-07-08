@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+use lib 't/auxlib';
+use Test::JMM;
 use Test::More 'no_plan';
 use Test::Differences;
 use Test::Pod;

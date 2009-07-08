@@ -1,10 +1,11 @@
 #!/usr/bin/perl
+use lib 't/auxlib';
+use Test::JMM;
 use Test::More tests => 7;
 use Test::NoWarnings;
 use Test::Exception;
 use Test::Differences;
 use lib 't/lib';
-use lib 't/auxlib';
 
 use_ok('Pod::Inherit');
 
@@ -23,10 +24,8 @@ $pi_override->write_pod;
 ok(!-e 't/lib/OverrideSubClass.pod', "Doesn't produce unneeded pod for completely overridden base class");
 
 
-my ($skip_moose, $skip_classc3);
-eval "require Moose";
-
-if(!$@) {
+SKIP: {
+  skip "Moose not installed", 1 unless Test::JMM::has_moose;
   my $pi_moose = Pod::Inherit->new({ input_files => [ 't/auxlib/MooseSub.pm' ] });
   $pi_moose->write_pod;
   my $output = do { local (@ARGV, $/) = "t/auxlib/MooseSub.pod"; <> || 'NO OUTPUT' };
@@ -38,8 +37,8 @@ if(!$@) {
 #  ok(!-e 't/lib/MooseSub.pod', "Moose extends, existing POD");
 }
 
-eval "require Class::C3";
-if(!$@) {
+SKIP: {
+  skip "Class::C3 not installed", 1 unless Test::JMM::has_c3;
   my $pi_c3 = Pod::Inherit->new({ input_files => [ 't/auxlib/ClassC3Sub.pm' ] });
   $pi_c3->write_pod;
   eq_or_diff(

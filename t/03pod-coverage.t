@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+use lib 't/auxlib';
+use Test::JMM;
 use warnings;
 use strict;
 use Test::Pod::Coverage tests=>2;
