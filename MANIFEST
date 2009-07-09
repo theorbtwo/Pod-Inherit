@@ -1,3 +1,4 @@
+t/auxlib/Test/JMM.pm
 t/lib/InlineSubConfig.pm
 t/lib/InlineBaseConfig.pm
 t/golden/InlineSubConfig.pod
