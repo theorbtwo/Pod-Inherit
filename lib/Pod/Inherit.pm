@@ -12,7 +12,7 @@ BEGIN {
 use Sub::Identify;
 use Pod::Compiler;
 use Path::Class;
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 

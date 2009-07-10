@@ -1,3 +1,13 @@
+0.07
+ - Create, and document a $DEBUG var, to put debug printing in
+   - Get rid of silent dependency on Data::Dump::Streamer
+   - Recriminate self over it.
+ - Make it possible to manually behave as if Moose or C3 weren't
+   present, to make sure the test suite still PASSes.
+ - Make it possible to see what gets loaded during the test suite,
+   to see if extra dependencies have snuck in.
+ - Help genericizing and releasing either of those welcome, BTW.
+
 0.06
  - Yet another go at not reloading files.
  - Make error messages on unloadable files somewhat less verbose.
