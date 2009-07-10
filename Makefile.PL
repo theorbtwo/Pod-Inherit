@@ -23,6 +23,7 @@ WriteMakefile(
                                 'Sub::Identify' => 0,
                                 # Test dependencies below this boundry,
                                 # please.
+                                'Module::CoreList' => 0,
                                 'Test::Differences' => 0,
                                 'Test::Exception' => 0,
                                 'Test::More' => 0,

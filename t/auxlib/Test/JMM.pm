@@ -35,21 +35,32 @@ sub import {
       my $modname = $mod_as_filename;
       $modname =~ s!/!::!g;
       $modname =~ s/\.pm$//;
-      my $filename = (caller)[1];
-      my $line = (caller)[2];
+      my $filename;
+      my $line;
+      my $callerlevel = 0;
+      while (1) {
+        (my $package, $filename, $line) = caller($callerlevel);
+        # print STDERR "# Test::JMM::(\@INC hook) at $callerlevel: $package, $filename, $line\n";
+        $callerlevel++;
+        next if $filename =~ /^\(eval/;
+        next if $package eq 'Test::JMM';
+        next if $package eq 'base';
+        last;
+      }
       my $kind;
       if ($filename =~ m/\bblib\b/) {
         $kind = 'runtime';
-        #print STDERR "# In blib -- assuming runtime dependency of thing under test\n";
+        # print STDERR "# In blib -- assuming runtime dependency of thing under test\n";
       } elsif ($filename =~ m!^t\b!) {
         $kind = 'test';
-        #print STDERR "# In t/ -- assuming testing dependency.\n";
+        # print STDERR "# In t/ -- assuming testing dependency.\n";
       } else {
+        # print STDERR "# loading $mod_as_filename from $filename line $line - elsewhere?\n";
         return;
       }
       my $first_rel = Module::CoreList->first_release($modname);
       if ($first_rel and $first_rel <= 5.006) {
-        print STDERR "# (Is core as of $first_rel)\n";
+        # print STDERR "# ($modname is core as of $first_rel)\n";
         return ();
       }
       # print STDERR "# Attempting to find $mod_as_filename from $filename line $line for $kind\n";
