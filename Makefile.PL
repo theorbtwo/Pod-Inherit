@@ -29,5 +29,6 @@ WriteMakefile(
                                 'Test::NoWarnings' => 0,
                                 'Test::Pod::Coverage' => 0,
                                 'Test::Pod' => 0,
+                                'Test::Warn' => 0,
                                },
              );

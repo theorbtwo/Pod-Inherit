@@ -6,14 +6,14 @@ use strict;
 use Pod::Inherit;
 use Test::More 'no_plan';
 use Test::Differences;
-# FIXME: Test that we actually generate the warning we are supposed to.
-# use Test::NoWarnings;
+use Test::Warn;
 
 use lib 't/lib';
 my $pi = Pod::Inherit->new({
                             input_files => 't/lib/not_ours.pm',
                            });
-$pi->write_pod();
+warning_like {$pi->write_pod();}
+  qr/not_ours\.pod already exists, and it doesn't look like we generated it\.  Skipping this file/, "Got the warning";
 my $orig = do {local (@ARGV, $/) = "t/lib/not_ours.pod"; scalar <>};
 eq_or_diff(do {local (@ARGV, $/) = "t/lib/not_ours.pod"; scalar <>},
            $orig,
