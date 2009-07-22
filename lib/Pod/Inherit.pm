@@ -617,8 +617,11 @@ hard.)
 
 =head1 AUTHOR
 
-James Mastros <james@mastros.biz>
+James Mastros, theorbtwo <james@mastros.biz>
 
 =head1 LICENSE
+
+Copyright 2009, James Mastros.  Licensed under the same terms as
+perl itself.
 
 =cut
