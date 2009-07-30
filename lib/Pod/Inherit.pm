@@ -12,7 +12,7 @@ BEGIN {
 use Sub::Identify;
 use Pod::Compiler;
 use Path::Class;
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 NAME
 
@@ -290,6 +290,10 @@ sub create_pod {
       return;
     }
   }
+  # There's what is arguably a bug in perl itself lurking here: Foo.pm
+  # dies during complation (IE not because it wasn't in @INC).  An
+  # undef entry is left in %INC, but it's a READONLY undef, which
+  # means that you can't just assign something else to the slot.
   $INC{$class_as_filename} = $src;
   
   

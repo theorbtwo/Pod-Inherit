@@ -1,3 +1,10 @@
+0.08
+ - Work around arguable perl bug with failed entries in %INC
+   - Upshot: If you distribution has modules that fail to load,
+     and then we try to create documentation for them after that,
+     we won't die horribly.
+ - Add a LICENSE section to the POD.
+
 0.07
  - Create, and document a $DEBUG var, to put debug printing in
    - Get rid of silent dependency on Data::Dump::Streamer
