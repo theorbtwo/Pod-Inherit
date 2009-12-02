@@ -16,16 +16,13 @@ PodWithAuthor - Already with POD
 
 UUHUHJIIOJ
 
-
 =head1 INHERITED METHODS
 
-=over
-
+=over 4
 
 =item L<SimpleBaseClass>
 
 mymethod
-
 
 =back
 
@@ -37,4 +34,3 @@ James Mastros <james@mastros.biz>
 
 As Perl itself
 
-=cut

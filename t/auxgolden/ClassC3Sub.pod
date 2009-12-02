@@ -8,16 +8,13 @@ sure you change the first line.
 
 =cut
 
-
 =head1 INHERITED METHODS
 
-=over
-
+=over 4
 
 =item L<ClassC3Base>
 
 myc3method
-
 
 =back
 

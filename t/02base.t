@@ -7,6 +7,7 @@ use Test::Exception;
 use Test::Differences;
 use lib 't/lib';
 
+$Pod::Inherit::DEBUG=1;
 use_ok('Pod::Inherit');
 
 ## Non-existant file, dies in open()

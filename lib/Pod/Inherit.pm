@@ -10,8 +10,19 @@ BEGIN {
   }
 }
 use Sub::Identify;
-use Pod::Compiler;
+use Pod::POM;
+
+# Eww, monkeypatching.  Also, eww, replacing Perl's exception handling... poorly.
+BEGIN {
+  delete $Pod::POM::Node::{error};
+}
+sub Pod::POM::Node::error {
+  my ($self, @rest) = @_;
+  die "->error on Pod::POM::Node: @rest";
+}
+
 use Path::Class;
+use Scalar::Util 'refaddr';
 our $VERSION = '0.08';
 
 =head1 NAME
@@ -22,16 +33,16 @@ Pod::Inherit - auto-create pod sections listing inherited methods
 
   use Pod::Inherit;
 
-  my $config = { 
+  my $config = {
     out_dir => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc,
     input_files => ['/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/lib/'],
     skip_underscored => 1,
-    class_map => 
-      { 
-          "DBIx::Class::Relationship::HasMany" => "DBIx::Class::Relationship", 
-          "DBIx::Class::Relationship::HasOne" => "DBIx::Class::Relationship", 
-          "DBIx::Class::Relationship::BelongsTo" => "DBIx::Class::Relationship", 
-          "DBIx::Class::Relationship::ManyToMany" => "DBIx::Class::Relationship", 
+    class_map =>
+      {
+          "DBIx::Class::Relationship::HasMany" => "DBIx::Class::Relationship",
+          "DBIx::Class::Relationship::HasOne" => "DBIx::Class::Relationship",
+          "DBIx::Class::Relationship::BelongsTo" => "DBIx::Class::Relationship",
+          "DBIx::Class::Relationship::ManyToMany" => "DBIx::Class::Relationship",
           "DBIx::Class::ResultSourceProxy" => "DBIx::Class::ResultSource",
           "DBIx::Class::ResultSourceProxy::Table" => "DBIx::Class::ResultSource",
       }
@@ -74,7 +85,7 @@ by convention these are private methods.
 
 =back
 
-Create a new Pod::Inherit object. 
+Create a new Pod::Inherit object.
 
 The config hashref can contain the following keys:
 
@@ -294,7 +305,9 @@ sub create_pod {
   # dies during complation (IE not because it wasn't in @INC).  An
   # undef entry is left in %INC, but it's a READONLY undef, which
   # means that you can't just assign something else to the slot.
-  $INC{$class_as_filename} = $src;
+  if (!exists $INC{$class_as_filename}) {
+    $INC{$class_as_filename} = $src;
+  }
   
   
   my @isa_flattened = @{mro::get_linear_isa($classname)};
@@ -417,11 +430,9 @@ sub create_pod {
   # names beginning with underscores.
   
   my $new_pod = <<'__END_POD__';
- 
  =head1 INHERITED METHODS
  
  =over
- 
  
 __END_POD__
   
@@ -431,92 +442,82 @@ __END_POD__
   for my $class (@{$tt_stash->{isa_flattened}}) {
     next unless ($tt_stash->{methods}{$class});
     $new_pod .= "=item L<$class>\n\n";
-    $new_pod .= join(", ", @{$tt_stash->{methods}{$class}}) . "\n\n\n";
+    $new_pod .= join(", ", @{$tt_stash->{methods}{$class}}) . "\n\n";
   }
 
-  $new_pod .= "=back\n\n";
+  $new_pod .= "=back\n\n=cut\n\n";
 
-  # Rather annoyingly, we can't just stick a bunch of POD already marked up into a Pod::Compile; it needs an object.
-  $new_pod = bless {_text => $new_pod}, 'Pod::superliteral';
+  print "New pod, before Pod::POMification: \n", $new_pod;
 
-  my $pod = Pod::Compiler::pod_compile({ -warnings => 0, -errors => 0 }, $src)
-    or die "Couldn't parse existing pod in $src";
+  my $parser = Pod::POM->new;
+  $new_pod = $parser->parse_text($new_pod)
+    or die "Generated pod invalid?";
+
+  # examine any warnings raised
+  foreach my $warning ($parser->warnings()) {
+    warn "Generated pod warning: $warning\n";
+  }
+
+  print "New pod, after Pod::POMification: \n";
+  print $new_pod->dump;
+
+  $parser = Pod::POM->new;
+  my $pod = $parser->parse_file($src)
+    or die "Couldn't parse existing pod in $src: ".$parser->error;
   
   my $insertion_point;
   my $before; # If set, we should go *before* the insertion point.  Otherwise we should go *after*.
-  for (reverse $pod->daughters) {
-    next unless $_->isa('Pod::head');
-    next unless $_->level eq 1;
+  for (reverse $pod->content) {
+    next unless $_->isa('Pod::POM::Node::Head1');
     
-    my $text = $_->nodetext;
+    my $title = $_->title;
     # This should be a list of all POD sections that should be "at the end of the file".
     # That is, things that we should go before.
-    if (grep {$text eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT') {
+    if (grep {$title eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT') {
       $insertion_point = $_;
       $before = 1;
       next;
     } else {
-#      print "Found head $text, going after that section\n";
+      print "Found head $title, going after that section\n";
       last;
     }
-  } 
-
+  }
+  
   my $outstr = $self->get_inherit_header($classname, $src);
   
   if (!$insertion_point) {
-    $insertion_point = ($pod->daughters)[-1];
-#    print "Going at end\n";
+    print "Going at end\n";
+    $insertion_point = ($pod->content)[-1];
   }
   if (!$insertion_point) {
+    print "Going as only section\n";
     $insertion_point = $pod;
-#    print "Going as only section\n";
-    $outstr .= $new_pod->as_pod;
-    return $outstr;
-  } else {
-    
-#    print "Insertion point: $insertion_point\n";
-#    print " '", $insertion_point->nodetext, "'\n"
-#      if $insertion_point->isa('Pod::head');
-    
-    my $mother = $insertion_point->mother || $insertion_point;
-    # We want to insert $new_pod just *before* $insertion_point;
-    my @daughters = $mother->daughters;
-    my @new_daughters;
-    for (@daughters) {
-      if ($_ == $insertion_point && $before) {
-        push @new_daughters, $new_pod;
-      }
-      push @new_daughters, $_;
-      if ($_ == $insertion_point && !$before) {
-        push @new_daughters, $new_pod;
-      }
-    }
-    $mother->set_daughters(@new_daughters);
-    #   my $existing_pod = Pod::Tree->new;
-    #   $pod_tree->load_file($src) or die "Couldn't parse original POD in $src";
-    
-    #   my $prev_head;
-    #   for my $kid (reverse @{$pod_tree->get_root->get_children}) {
-    #     Dump $kid;
-    #     next unless $kid->get_type eq 'command';
-    #     next unless $kid->get_command eq 'head1';
-    #     my $text = $kid->get_text;
-    #     $text =~ s/\s+$//;
-    #     if ($text eq 'LICENSE' or
-    #         $text eq 'AUTHORS') {
-    #       # skip these sections, they belong at the end.
-    #     } else {
-    #       die "Unknown POD section $text -- is this the insertion point?";
-    #     }
-    #     $prev_head = $kid;
-    #   }
-    
-    #   $prev_head
-    # ... output it to ??
-    $outstr .= $pod->as_pod;
-    $pod->delete_tree;
+    $outstr .= $new_pod;
     return $outstr;
   }
+
+  # Normal case: We are going to insert our new node just before
+  # (or just after, depending on $before) $insertion_point
+  # within the content list of the root node.
+  for my $i (0..$#{$pod->{content}}) {
+    if (refaddr($pod->{content}->[$i]) == refaddr($insertion_point)) {
+      if ($before) {
+        splice(@{$pod->{content}}, $i, 0, $new_pod);
+      } else {
+        # After.
+        splice(@{$pod->{content}}, $i+1, 0, $new_pod);
+      }
+    }
+  }
+  
+  $outstr .= $pod;
+
+  # Just clean up a little bit of inefficency in the form that
+  # Pod::POM outputs.  (And also, handily, make it look more like the
+  # form that our golden files are in, for testing.)
+  # $outstr =~ s/^\n\n\n/\n\n/g;
+
+  return $outstr;
 }
 
 sub filename_to_classname {
@@ -570,35 +571,6 @@ __END_HEADER__
 
 1;
 
-package Pod::superliteral;
-use Pod::objects;
-use vars '$AUTOLOAD', '@ISA';
-# @ISA = ('Pod::_obj', 'Tree::DAG_Node');
-
-sub as_pod {
-  $_[0]->{_text};
-}
-
-sub AUTOLOAD {
-  return if $AUTOLOAD eq 'Pod::superliteral::DESTROY';
-  die "Unhandled Pod::objects API: $AUTOLOAD";
-}
-
-sub walk_down {
-  my ($node, $args) = @_;
-  if ($args->{callback}) {
-    $args->{callback}($node, $args);
-  }
-  if ($args->{callbackback}) {
-    $args->{callbackback}($node, $args);
-  }
-}
-
-sub is_node {
-  1;
-}
-
-1;
 
 =head2 Inline configuration
 

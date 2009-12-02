@@ -19,7 +19,7 @@ WriteMakefile(
               PREREQ_PM     => {
                                 'MRO::Compat' => 0,
                                 'Path::Class' => 0,
-                                'Pod::Compiler' => 0,
+                                'Pod::POM' => 0,
                                 'Sub::Identify' => 0,
                                 # Test dependencies below this boundry,
                                 # please.

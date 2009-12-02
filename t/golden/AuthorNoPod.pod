@@ -8,16 +8,13 @@ sure you change the first line.
 
 =cut
 
-
 =head1 INHERITED METHODS
 
 =over
 
-
 =item L<SimpleBaseClass>
 
 mymethod
-
 
 =back
 
@@ -30,4 +27,3 @@ James Mastros <james@mastros.biz>
 As Perl itself.
 Hopefully the inherited pod goes before author
 
-=cut

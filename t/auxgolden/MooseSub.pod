@@ -20,21 +20,17 @@ Blah
 
 Blah
 
-
 =head1 INHERITED METHODS
 
-=over
-
+=over 4
 
 =item L<MooseBase>
 
 anattribute
 
-
 =item L<Moose::Object>
 
 (some methods here)
-
 
 =back
 
@@ -46,4 +42,3 @@ James Mastros <james@mastros.biz>
 
 Stuff
 
-=cut

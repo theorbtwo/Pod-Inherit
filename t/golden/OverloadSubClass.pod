@@ -8,16 +8,13 @@ sure you change the first line.
 
 =cut
 
-
 =head1 INHERITED METHODS
 
-=over
-
+=over 4
 
 =item L<OverloadBaseClass>
 
-I<E<43> overloading>
-
+I<< E<43> overloading >>
 
 =back
 

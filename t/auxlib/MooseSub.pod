@@ -20,21 +20,31 @@ Blah
 
 Blah
 
-
 =head1 INHERITED METHODS
 
-=over
-
+=over 4
 
 =item L<MooseBase>
 
 anattribute
 
-
 =item L<Moose::Object>
 
 BUILDALL, BUILDARGS, DEMOLISHALL, DOES, does, dump
 
+=back
+
+=head1 INHERITED METHODS
+
+=over 4
+
+=item L<MooseBase>
+
+anattribute
+
+=item L<Moose::Object>
+
+BUILDALL, BUILDARGS, DEMOLISHALL, DOES, does, dump
 
 =back
 
@@ -46,4 +56,3 @@ James Mastros <james@mastros.biz>
 
 Stuff
 
-=cut
