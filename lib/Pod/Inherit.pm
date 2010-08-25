@@ -34,7 +34,7 @@ Pod::Inherit - auto-create pod sections listing inherited methods
   use Pod::Inherit;
 
   my $config = {
-    out_dir => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc,
+    out_dir => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc",
     input_files => ['/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/lib/'],
     skip_underscored => 1,
     class_map =>
@@ -48,7 +48,7 @@ Pod::Inherit - auto-create pod sections listing inherited methods
       }
    };
 
-  my $pi = Pod::Inherit->new( $config });
+  my $pi = Pod::Inherit->new( $config );
   $pi->write_pod;
 
 =head1 DESCRIPTION
