@@ -446,7 +446,7 @@ __END_POD__
 
   $new_pod .= "=back\n\n=cut\n\n";
 
-  print "New pod, before Pod::POMification: \n", $new_pod;
+  print "New pod, before Pod::POMification: \n", $new_pod if $DEBUG;
 
   my $parser = Pod::POM->new;
   $new_pod = $parser->parse_text($new_pod)
@@ -457,8 +457,8 @@ __END_POD__
     warn "Generated pod warning: $warning\n";
   }
 
-  print "New pod, after Pod::POMification: \n";
-  print $new_pod->dump;
+  print "New pod, after Pod::POMification: \n"  if $DEBUG;
+  print $new_pod->dump  if $DEBUG;
 
   $parser = Pod::POM->new;
   my $pod = $parser->parse_file($src)
@@ -480,12 +480,12 @@ __END_POD__
     # This should be a list of all POD sections that should be "at the end of the file".
     # That is, things that we should go before.
     if (grep {$title eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT') {
-      print "Fount head $title at index $i, going before that section\n";
+      print "Fount head $title at index $i, going before that section\n"  if $DEBUG;
       $insertion_point = $i;
       $before = 1;
       last;
     } else {
-      print "Found head $title at index $i, going after that section\n";
+      print "Found head $title at index $i, going after that section\n" if $DEBUG;
       $insertion_point = $i;
       $before = 0;
       last;
@@ -494,12 +494,12 @@ __END_POD__
   
   
   if (!$insertion_point and $pod->content) {
-    print "Going at end\n";
+    print "Going at end\n" if $DEBUG;
     $insertion_point = -1;
     $before = 0;
   }
   if (!$insertion_point) {
-    print "Going as only section\n";
+    print "Going as only section\n" if $DEBUG;
     $insertion_point = $pod;
     $outstr .= $new_pod;
     return $outstr;
