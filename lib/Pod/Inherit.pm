@@ -34,7 +34,7 @@ Pod::Inherit - auto-create pod sections listing inherited methods
   use Pod::Inherit;
 
   my $config = {
-    out_dir => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc",
+    out_dir => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc,
     input_files => ['/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/lib/'],
     skip_underscored => 1,
     class_map =>
@@ -48,7 +48,7 @@ Pod::Inherit - auto-create pod sections listing inherited methods
       }
    };
 
-  my $pi = Pod::Inherit->new( $config );
+  my $pi = Pod::Inherit->new( $config });
   $pi->write_pod;
 
 =head1 DESCRIPTION
@@ -243,7 +243,7 @@ sub write_pod {
 =head3 create_pod
 
 The semantics of the C<class_map> argument need to go something like this:
-- Something being in the class_map means that it will be documented, even if it starts with an underscore, 
+- Something being in the class_map means that it will be documented, even if it starts with an underscore,
   or would otherwise be skipped.
 - If the value is '1', then that's the only effect; it will be documented as being where it is.
 - Otherwise, the value is the name of the module that it should be documented as if it was in.
@@ -308,7 +308,6 @@ sub create_pod {
   if (!exists $INC{$class_as_filename}) {
     $INC{$class_as_filename} = $src;
   }
-  
   
   my @isa_flattened = @{mro::get_linear_isa($classname)};
   
@@ -464,30 +463,40 @@ __END_POD__
   $parser = Pod::POM->new;
   my $pod = $parser->parse_file($src)
     or die "Couldn't parse existing pod in $src: ".$parser->error;
+  my $outstr = $self->get_inherit_header($classname, $src);
   
+  # If set, we should go *before* the insertion point.
+  # Otherwise we should go *after*.
+  my $before;
+  # What is the index of the section that we should be going before / after?
   my $insertion_point;
-  my $before; # If set, we should go *before* the insertion point.  Otherwise we should go *after*.
+
+  my $i = 0;
   for (reverse $pod->content) {
+    $i--;
     next unless $_->isa('Pod::POM::Node::Head1');
     
     my $title = $_->title;
     # This should be a list of all POD sections that should be "at the end of the file".
     # That is, things that we should go before.
     if (grep {$title eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT') {
-      $insertion_point = $_;
+      print "Fount head $title at index $i, going before that section\n";
+      $insertion_point = $i;
       $before = 1;
-      next;
+      last;
     } else {
-      print "Found head $title, going after that section\n";
+      print "Found head $title at index $i, going after that section\n";
+      $insertion_point = $i;
+      $before = 0;
       last;
     }
   }
   
-  my $outstr = $self->get_inherit_header($classname, $src);
   
-  if (!$insertion_point) {
+  if (!$insertion_point and $pod->content) {
     print "Going at end\n";
-    $insertion_point = ($pod->content)[-1];
+    $insertion_point = -1;
+    $before = 0;
   }
   if (!$insertion_point) {
     print "Going as only section\n";
@@ -496,26 +505,15 @@ __END_POD__
     return $outstr;
   }
 
-  # Normal case: We are going to insert our new node just before
-  # (or just after, depending on $before) $insertion_point
-  # within the content list of the root node.
-  for my $i (0..$#{$pod->{content}}) {
-    if (refaddr($pod->{content}->[$i]) == refaddr($insertion_point)) {
-      if ($before) {
-        splice(@{$pod->{content}}, $i, 0, $new_pod);
-      } else {
-        # After.
-        splice(@{$pod->{content}}, $i+1, 0, $new_pod);
-      }
-    }
+  if (not $before and $insertion_point == -1) {
+    push @{$pod->{content}}, $new_pod;
+  } elsif ($before) {
+    splice(@{$pod->content}, $insertion_point-1, 0, $new_pod);
+  } else {
+    splice(@{$pod->content}, $insertion_point, 0, $new_pod);
   }
-  
-  $outstr .= $pod;
 
-  # Just clean up a little bit of inefficency in the form that
-  # Pod::POM outputs.  (And also, handily, make it look more like the
-  # form that our golden files are in, for testing.)
-  # $outstr =~ s/^\n\n\n/\n\n/g;
+  $outstr .= $pod;
 
   return $outstr;
 }
@@ -553,6 +551,12 @@ sub is_ours {
 
 sub get_inherit_header {
     my ($self, $classname, $src) = @_;
+
+    # Always give source paths as unix, so the tests don't need to
+    # vary depending on what OS the user is running on.  This may be
+    # construed as a bug.  If you care, patches are welcome, if they
+    # fix the tests, too.
+    $src = Path::Class::File->new($src)->as_foreign('Unix');
 
 return  <<__END_HEADER__;
 =for comment POD_DERIVED_INDEX_GENERATED
