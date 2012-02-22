@@ -10,7 +10,7 @@ sure you change the first line.
 
 =head1 INHERITED METHODS
 
-=over
+=over 4
 
 =item L<SimpleBaseClass>
 
