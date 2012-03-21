@@ -11,6 +11,7 @@ BEGIN {
 }
 use Sub::Identify;
 use Pod::POM;
+use Carp;
 
 # Eww, monkeypatching.  Also, eww, replacing Perl's exception handling... poorly.
 BEGIN {
@@ -18,6 +19,7 @@ BEGIN {
 }
 sub Pod::POM::Node::error {
   my ($self, @rest) = @_;
+  print STDERR Carp::longmess;
   die "->error on Pod::POM::Node: @rest";
 }
 
@@ -479,7 +481,7 @@ __END_POD__
     my $title = $_->title;
     # This should be a list of all POD sections that should be "at the end of the file".
     # That is, things that we should go before.
-    if (grep {$title eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT') {
+    if (grep {$title eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT', 'COPYRIGHT AND LICENSE') {
       print "Fount head $title at index $i, going before that section\n"  if $DEBUG;
       $insertion_point = $i;
       $before = 1;
