@@ -42,3 +42,6 @@
 ^cifs
 lib/Pod/Inherit.pm.1
 lib/Pod/Inherit.pm.2
+
+# Avoid examples/test dir
+eg

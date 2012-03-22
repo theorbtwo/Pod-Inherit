@@ -67,3 +67,5 @@ t/lib/SimplePodSubClass.pm
 t/lib/SimpleSubClass.pm
 t/lib/SkipUnderscoreBaseClass.pm
 t/lib/SkipUnderscoreSubClass.pm
+t/golden/Schema.pod
+t/lib/Schema.pm

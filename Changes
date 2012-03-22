@@ -1,3 +1,6 @@
+0.09
+ - Stop outputting the inherited methods section multiple times.
+
 0.08
  - Work around arguable perl bug with failed entries in %INC
    - Upshot: If you distribution has modules that fail to load,
