@@ -2,16 +2,12 @@ package Pod::Inherit;
 use warnings;
 use strict;
 use MRO::Compat;
-our $DEBUG;
-BEGIN {
-  if ($DEBUG) {
-    require Data::Dump::Streamer;
-    Data::Dump::Streamer->import('Dump');
-  }
-}
 use Sub::Identify;
 use Pod::POM;
+use List::MoreUtils qw(any firstidx);
 use Carp;
+
+our $DEBUG = 0;
 
 # Eww, monkeypatching.  Also, eww, replacing Perl's exception handling... poorly.
 BEGIN {
@@ -25,7 +21,7 @@ sub Pod::POM::Node::error {
 
 use Path::Class;
 use Scalar::Util 'refaddr';
-our $VERSION = '0.09';
+our $VERSION = '0.11';
 
 =head1 NAME
 
@@ -36,19 +32,32 @@ Pod::Inherit - auto-create pod sections listing inherited methods
   use Pod::Inherit;
 
   my $config = {
-    out_dir => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc,
-    input_files => ['/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/lib/'],
+    out_dir          => "/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/doc",
+    input_files      => ['/usr/src/perl/dbix-class/bast/DBIx-Class/0.08/trunk/lib/'],
     skip_underscored => 1,
-    class_map =>
-      {
-          "DBIx::Class::Relationship::HasMany" => "DBIx::Class::Relationship",
-          "DBIx::Class::Relationship::HasOne" => "DBIx::Class::Relationship",
-          "DBIx::Class::Relationship::BelongsTo" => "DBIx::Class::Relationship",
-          "DBIx::Class::Relationship::ManyToMany" => "DBIx::Class::Relationship",
-          "DBIx::Class::ResultSourceProxy" => "DBIx::Class::ResultSource",
-          "DBIx::Class::ResultSourceProxy::Table" => "DBIx::Class::ResultSource",
-      }
-   };
+    class_map        => {
+      "DBIx::Class::Relationship::HasMany"    => "DBIx::Class::Relationship",
+      "DBIx::Class::Relationship::HasOne"     => "DBIx::Class::Relationship",
+      "DBIx::Class::Relationship::BelongsTo"  => "DBIx::Class::Relationship",
+      "DBIx::Class::Relationship::ManyToMany" => "DBIx::Class::Relationship",
+      "DBIx::Class::ResultSourceProxy"        => "DBIx::Class::ResultSource",
+      "DBIx::Class::ResultSourceProxy::Table" => "DBIx::Class::ResultSource",
+    },
+    skip_classes    => ['DBIx/Class/Serialize/Storable.pm'],
+    skip_inherits   => [ qw/
+      DBIx::Class::Componentised
+      Class::C3::Componentised
+    / ],
+    force_inherits  => {
+      'DBIx::Class::Row' => 'DBIx::Class::Core',
+      'DBIx::Class::AccessorGroup' => [
+        'Class::Accessor',
+        'Class::Accessor::Grouped'
+      ]
+    },
+    method_format   => 'L<%m|%c/%m>'
+    debug           => 1,
+  };
 
   my $pi = Pod::Inherit->new( $config });
   $pi->write_pod;
@@ -114,12 +123,19 @@ Default: Same as input_files
 A directory to output the results into. If not supplied, the F<.pod>
 file is created alongside the F<.pm> file it came from.
 
+=item force_permissions
+
+ExtUtils::MakeMaker makes directories in blib read-only before we'd
+like to write into them.  If this is set to a true value, we'll catch
+permission denied errors, and try to make the directory writeable,
+write the file, and then set it back to how it was before.
+
 =item class_map
 
 Default: none
 
 A hashref of key/value string pairs. The keys represent classes in
-which inherited methods will be found, the values are the classes
+which inherited methods will be found; the values are the classes
 which it should link to in the new pod for the actual pod of the
 methods.
 
@@ -128,32 +144,107 @@ and documented the methods of some of their base classes further up
 the inheritance chain. This config option lets you tell Pod::Inherit
 where you moved the pod to.
 
-=item force_permissions
+=item skip_classes
 
-ExtUtils::MakeMaker makes directories in blib read-only before we'd
-like to write into them.  If this is set to a true value, we'll catch
-permission denied errors, and try to make the directory writeable,
-write the file, and then set it back to how it was before.
+Default: none
+
+A arrayref of classes and/or F<.pm> files.  Any class/file found in
+the list will be skipped for POD creation.
+
+=item skip_inherits
+
+Default: none
+
+A arrayref of classes.  This is a list of classes that shouldn't
+show up in any of the C<INHERITED METHODS> sections.
+
+=item force_inherits
+
+Default: none
+
+A hashref of arrayrefs.  Like the opposite of skip_inherits, this
+will forcefully add the classes listed to the C<INHERITED METHODS>
+sections, except this will only work on a per-class basis.  The keys
+represent the classes affected; the values are arrayrefs (or single
+strings) specifying which classes to add.
+
+In order to access the methods for the new modules, we'll need to
+load them manually after the main class is loaded.  If there are
+some sort of weird conflicts, this may cause undesirable results.
+Also, any methods that the NEW module inherits will also be added
+to the method list.
+
+=item method_format
+
+Default: '%m'
+
+A string with a few custom percent-encoded variables.  This string
+will be used on each method name found when writing the new POD
+section.  The custom variables are C<%m>, C<%c>, C<%%>, which stand
+for the method name, class name, and a literal percent sign
+(respectively).  The default basically just prints out the method
+name, unaltered.
+
+This string can be used to add method links to the POD files (like
+C<'LZ<><%m|%c/%m>'>), or to change the formatting (like C<'CZ<><%mE>'>).
+
+=item debug
+
+Default: 0
+
+Either 1 or 2.  A debug level of 1 will print out a managable level
+of debug information per module.  To get POD outputs, set this to
+2.
+
+This used to be set with C<$Pod::Inherit::DEBUG>, but this property
+is now preferred.  However, the old method still works for
+backwards-compatibility.
 
 =back
 
 =cut
 
 sub new {
-    my ($class, $args) = @_;
-    $args = {
-        'skip_underscored' => 1,
-        'input_files' => [], # \@ARGV,
-        'out_dir' => '',
-        'class_map' => {},
-        %{ $args || {} },
-    };
+  my ($class, $args) = @_;
+  $args = {
+    skip_underscored => 1,
+    input_files      => [], # \@ARGV,
+    out_dir          => '',
+    class_map        => {},
+    skip_classes     => [],
+    skip_inherits    => [],
+    force_inherits   => {},
+    method_format    => '%m',
+    %{ $args || {} },
+  };
 
-    # Accept just a single filename in here -- OR A SINGLE Path::Class::File!
-    $args->{input_files} = [$args->{input_files}] if not ref($args->{input_files}) eq 'ARRAY';
+  $DEBUG = $args->{debug} || 0;
+  if ($DEBUG >= 2) {
+    require Data::Dump::Streamer;
+    Data::Dump::Streamer->import('Dump');
+  }
+  
+  # Accept just a single filename in here -- OR A SINGLE Path::Class::File!
+  for (qw/input_files skip_classes skip_inherits/) {
+    $args->{$_} = [$args->{$_}] if not ref($args->{$_}) eq 'ARRAY';
+  }
+  if (my $fi = $args->{force_inherits}) {
+    for (keys %$fi) {
+      $fi->{$_} = [$fi->{$_}] if not ref($fi->{$_}) eq 'ARRAY';
+    }
+  }
 
-    my $self = bless($args, $class);
-    return $self;
+  my $self = bless($args, $class);
+
+  # Clean up skip_classes
+  @{$self->{skip_classes}} = grep { /./ } map {
+    my $c = $_;
+    $_ = /::/ ? $self->classname_to_real_file($c) : (-d $_ ? Path::Class::Dir->new($c) : Path::Class::File->new($c))->cleanup->resolve;
+    warn "Cannot find real file for $c (found in skip_classes)" unless defined;
+    $_;
+  } @{$self->{skip_classes}};
+
+  return $self;
 }
 
 =head3 write_pod
@@ -179,61 +270,58 @@ sub write_pod {
     -d $_ ? [$_, $_] : [$_, Path::Class::File->new($_)->dir]
   } @{ $self->{input_files} };
   
-  if (!@targets) {
-    die "no targets";
-  }
-  
+  die "no targets" if (!@targets);
+    
   while (@targets) {
     my ($target, $origtarget) = @{shift @targets};
+    print "target=$target origtarget=$origtarget \n" if ($DEBUG);
     
-    if ($DEBUG) {
-      print "target=$target origtarget=$origtarget \n";
+    # Check skip list before we do anything
+    my $output_filename = (-d $target ? Path::Class::Dir->new($target) : Path::Class::File->new($target))->cleanup->resolve;
+    if ( scalar grep { $_ eq $output_filename } @{$self->{skip_classes}} ) {
+      print "  target skipped per skip_classes\n" if ($DEBUG);
+      next;
     }
+    
     if (-d $target) {
-      #print "-d\n";
-      for my $newtarget (glob "$target/*") {
-        unshift @targets, [$newtarget, $origtarget];
-      }
+      print "  directory: adding children as new targets\n" if ($DEBUG);
+      unshift @targets, map { [$_, $origtarget] } ($output_filename->children);
       next;
     }
     if ($target =~ m/\.pm$/) {
-      my $output_filename = Path::Class::File->new($target);
-      if ($self->{out_dir}) {
-        my $src_rel_orig = Path::Class::File->new($target)->relative($origtarget);
-        $output_filename = $src_rel_orig->absolute($self->{out_dir});
-      }
-      my $ret = $output_filename->dir->mkpath;
+      $output_filename = $output_filename->relative($origtarget)->absolute($self->{out_dir}) if ($self->{out_dir});
+
       $output_filename =~ s/\.pm$/.pod/g;
+      $output_filename = Path::Class::File->new($output_filename);
       
-      if($self->is_ours($output_filename)) {
+      my $dir = $output_filename->dir;
+      my $ret = $dir->mkpath;
+      
+      if ($self->is_ours($output_filename)) {
         my $allpod = $self->create_pod($target);
         # Don't create the output file if there would be nothing in it!
         if (!$allpod) {
-          # warn "Not creating empty file $output_filename\n";
+          print "  not creating empty file $output_filename\n" if ($DEBUG);
           next;
         }
         
         my ($outfh, $oldperm);
-        if ($DEBUG) {
-          print "Writing $output_filename\n";
-        }
-        if (not open $outfh, '>', $output_filename) {
+        print "  Writing $output_filename\n" if ($DEBUG);
+        unless ( $outfh = $output_filename->open('w') ) {
           if ($!{EACCES} and $self->{force_permissions} ) {
-            unlink $output_filename;
-            $output_filename = Path::Class::File->new($output_filename);
-            $oldperm = (stat($output_filename->dir))[2];
-            chmod $oldperm | 0200, $output_filename->dir 
-              or die "Can't chmod ".$output_filename->dir." (or write into it)";
-            open $outfh, '>', $output_filename or die "Can't open $output_filename for output (even after chmodding it's parent directory): $!";
+            $output_filename->remove;
+            $oldperm = $dir->stat->mode;
+            chmod $oldperm | 0200, $dir or die "Can't chmod ".$dir." (or write into it)";
+            $outfh = $output_filename->open('w') or die "Can't open $output_filename for output (even after chmodding it's parent directory): $!";
           } else {
             die "Can't open $output_filename for output: $!";
           }
         }
         
-        print $outfh $allpod;
-        close($outfh);
+        $outfh->print($allpod);
+        $outfh->close;
         if (defined $oldperm) {
-          chmod $oldperm, $output_filename->dir or die sprintf "Can't chmod %s back to 0%o", $output_filename->dir, $oldperm;
+          chmod $oldperm, $dir or die sprintf "Can't chmod %s back to 0%o", $dir, $oldperm;
         }
       }
     }
@@ -262,100 +350,64 @@ sub create_pod {
   # knowing that t/lib//foo and t/lib/foo are the same library, leading to "redefined"
   # warnings.
   # (And we need to make it a string again, because otherwise Pod::Parser gets confused.)
-  $src = Path::Class::File->new($src)->stringify;
+  $src = Path::Class::File->new($src)->cleanup->resolve->stringify;
 
-#  print "handle_pmfile($src)\n";
-  
   my $tt_stash;
   
-  my $classname = $self->filename_to_classname($src);
-  if (!$classname) {
-#    print "Couldn't find any package statement in $src\n";
-    return;
-  }
-  $tt_stash->{classname}=$classname;
-
-  # What we had here was hack on top of hack on top of hack, and still didn't work.
-  # Fuckit.  Rewrite.
-  local $|=1;
-  my $class_as_filename = $classname;
-  $class_as_filename =~ s!::!/!g;
-  $class_as_filename .= ".pm";
-
-  my $old_sig_warn = $SIG{__WARN__};
-  local $SIG{__WARN__} = sub {
-    my ($warning) = @_;
-    $warning = "While working on $src: $warning";
-    if ($old_sig_warn) {
-      $old_sig_warn->($warning);
-    } else {
-      warn $warning;
-    }
-  };
-
-  # Just like require, except without that pesky checking @INC thing,
-  # but making sure we put the "right" thing in %INC.
-  if (!exists $INC{$class_as_filename}) {
-    if (!do $src) {
-      my $err = $@;
-      $err =~ s/ \(\@INC contains: .*\)//;
-      print STDERR "Couldn't autogenerate documentation for $src: $err\n";
-      return;
-    }
-  }
-  # There's what is arguably a bug in perl itself lurking here: Foo.pm
-  # dies during complation (IE not because it wasn't in @INC).  An
-  # undef entry is left in %INC, but it's a READONLY undef, which
-  # means that you can't just assign something else to the slot.
-  if (!exists $INC{$class_as_filename}) {
-    $INC{$class_as_filename} = $src;
-  }
-  
+  my $classname = $tt_stash->{classname} = $self->require_class($src) || return;
   my @isa_flattened = @{mro::get_linear_isa($classname)};
-  
-  # The isa tree seems to always begin with ourself.  Fair enough, but not
-  # really wanted here.
-  if ($isa_flattened[0] eq $classname) {
-    shift @isa_flattened;
+
+  # Check for force inherits to add
+  my $fi = $self->{force_inherits};
+  my $force_inherits = $fi->{$src} || $fi->{$classname};
+  if ($force_inherits) {
+    # Forced inherits still need to be loaded manually
+    foreach my $class (@$force_inherits) {
+      print "  Found force inherit: $class\n" if ($DEBUG);
+      $self->require_class(undef, $class) || return;
+      push @isa_flattened, @{mro::get_linear_isa($class)};
+    }
   }
+  
+  # Now for ones to skip (including its own class)
+  foreach my $s ( @{ $self->{skip_inherits} }, $classname ) {
+    for (my $i = 0; $i < @isa_flattened; $i++) {
+      if ($s eq $isa_flattened[$i]) {
+        print "  Skipped per skip_inherits: $s\n" if ($DEBUG);
+        splice(@isa_flattened, $i--, 1);
+      }
+    }
+  }
+  
   # We can't possibly find anything.  Just short-circuit and save ourselves a lot of trouble.
   if (!@isa_flattened) {
-#    print "No parent classes\n";
+    print "  No parent classes\n" if ($DEBUG);
     return;
   }
   $tt_stash->{isa_flattened} = \@isa_flattened;
   
   my %seen;
-  my @derived;
   for my $parent_class (@isa_flattened) {
-    # print "$parent_class\n";
+    print "  Parent class: $parent_class\n" if ($DEBUG);
     my $stash;
     {
       no strict 'refs';
       $stash = \%{"$parent_class\::"};
     }
-    #if ($parent_class eq 'DBIx::Class::Relationship::HasOne') {
-    #  Dump $stash;
-    #}
     # There's something subtle and brain-melting going on here, but I think it works.
     my $local_config = $stash->{_pod_inherit_config};
-    #print "Parent class $parent_class\n";
-    #print "local config: \n";
-    #Dump $local_config;
-    #print "stringy local_config: ". $local_config. "\n";
     if (not exists $local_config->{skip_underscored}) {
       $local_config->{skip_underscored} = $self->{skip_underscored};
     }
     $local_config->{class_map} ||= $class_map;
 
-    #print "post-defaulting local config: \n";
-    #Dump $local_config;
-    #print "skip_underscored: $local_config->{skip_underscored}\n";
     for my $globname (sort keys %$stash) {
-      if ($local_config->{skip_underscored} and $globname =~ m/^_/) {
-        next;
-      }
+      next if ($local_config->{skip_underscored} and $globname =~ m/^_/);
       next if $seen{$globname};
+      
+      # Skip the typical UPPERCASE sub blocks that aren't really user-friendly methods
+      next if ($globname =~ m/^(?:AUTOLOAD|CLONE|DESTROY|BEGIN|UNITCHECK|CHECK|INIT|END)$/);
+      
       my $glob = $stash->{$globname};
       # Skip over things that aren't *code* globs, and cache entries.
       # (You might think that ->can will return false for non-code globs.  You'd be right.  It'll return true
@@ -370,16 +422,14 @@ sub create_pod {
         # (I loose track of exactly how...)
         # Strange, considering O_LARGEFILE clearly *is* a subroutine...
         if ($@ =~ /Not a subroutine reference/) {
-#          print "Got not a subref for $globname in $parent_class; it is probbaly imported accidentally.\n";
+          print "  Got not a subref for $globname in $parent_class; it is probably imported accidentally.\n" if ($DEBUG);
           $exists=0;
         } else {
           die "While checking if $parent_class $globname is a sub: $@";
         }
       }
-      if (!$exists) {
-        next;
-      }
-
+      next unless ($exists);
+      
       # This should probably be in the template.
       my $nice_name;
       if ($globname eq '()') {
@@ -393,6 +443,11 @@ sub create_pod {
       }
 
       my $subref = $classname->can($globname);
+      if ($force_inherits && !$subref) {  # forced inherits may be the ones with the methods...
+        foreach my $class (@$force_inherits) {
+          $subref //= $class->can($globname);
+        }
+      }
       # Must not be a method, but some other strange beastie.
       next if !$subref;
       
@@ -408,19 +463,13 @@ sub create_pod {
       }
       # print "$globname $nice_name $identify_name\n";
       # Note that this needs to happen *after* we determine if it's a cache entry, so that we *will* get them later.
-      $seen{$globname}=$parent_class;
+      $seen{$globname} = $parent_class;
 #      push @derived, { $parent_class => $nice_name };
 
-      my $doc_parent_class = $parent_class;
-      if ($local_config->{class_map}->{$parent_class}) {
-        $doc_parent_class = $local_config->{class_map}->{$parent_class};
-      }
+      my $doc_parent_class = $local_config->{class_map}->{$parent_class} || $parent_class;
       push @{$tt_stash->{methods}{$doc_parent_class}}, $nice_name;
-      if (!grep {$_ eq $doc_parent_class} @isa_flattened) {
-        # Hm, is there a better way of doing this?
-        # We want to insert $doc_parent_class just before $parent_class in @isa_flattened.
-        @isa_flattened = map {$_ eq $parent_class ? ($doc_parent_class, $_) : $_} @isa_flattened;
-      }
+      splice(@isa_flattened, (firstidx { $_ eq $parent_class } @isa_flattened), 0, $doc_parent_class)
+        unless (any {$_ eq $doc_parent_class} @isa_flattened);
     }
   }
 
@@ -443,12 +492,21 @@ __END_POD__
   for my $class (@{$tt_stash->{isa_flattened}}) {
     next unless ($tt_stash->{methods}{$class});
     $new_pod .= "=item L<$class>\n\n";
-    $new_pod .= join(", ", @{$tt_stash->{methods}{$class}}) . "\n\n";
+    
+    # Put in the method format
+    $new_pod .= join(", ", map {
+      my $method = $_;
+      my $mlf = $self->{method_format};
+      $mlf =~ s/\%m/$method/g;
+      $mlf =~ s/\%c/$class/g;
+      $mlf =~ s/\%\%/\%/g;
+      $mlf;
+    } @{$tt_stash->{methods}{$class}}) . "\n\n";
   }
 
   $new_pod .= "=back\n\n=cut\n\n";
 
-  print "New pod, before Pod::POMification: \n", $new_pod if $DEBUG;
+  print "New pod, before Pod::POMification: \n", $new_pod if ($DEBUG >= 2);
 
   my $parser = Pod::POM->new;
   $new_pod = $parser->parse_text($new_pod)
@@ -459,8 +517,10 @@ __END_POD__
     warn "Generated pod warning: $warning\n";
   }
 
-  print "New pod, after Pod::POMification: \n"  if $DEBUG;
-  print $new_pod->dump  if $DEBUG;
+  if ($DEBUG >= 2) {
+    print "New pod, after Pod::POMification: \n";
+    print $new_pod->dump;
+  }
 
   $parser = Pod::POM->new;
   my $pod = $parser->parse_file($src)
@@ -481,13 +541,14 @@ __END_POD__
     my $title = $_->title;
     # This should be a list of all POD sections that should be "at the end of the file".
     # That is, things that we should go before.
+    ### TODO: Config variable? ###
     if (grep {$title eq $_} qw<LICENSE AUTHORS LIMITATIONS CONTRIBUTORS AUTHOR CAVEATS COPYRIGHT BUGS>, 'SEE ALSO', 'ALSO SEE', 'WHERE TO GO NEXT', 'COPYRIGHT AND LICENSE') {
-      print "Fount head $title at index $i, going before that section\n"  if $DEBUG;
+      print "  Fount head $title at index $i, going before that section\n" if $DEBUG;
       $insertion_point = $i;
       $before = 1;
       last;
     } else {
-      print "Found head $title at index $i, going after that section\n" if $DEBUG;
+      print "  Found head $title at index $i, going after that section\n" if $DEBUG;
       $insertion_point = $i;
       $before = 0;
       last;
@@ -496,12 +557,12 @@ __END_POD__
   
   
   if (!$insertion_point and $pod->content) {
-    print "Going at end\n" if $DEBUG;
+    print "  Going at end\n" if $DEBUG;
     $insertion_point = -1;
     $before = 0;
   }
   if (!$insertion_point) {
-    print "Going as only section\n" if $DEBUG;
+    print "  Going as only section\n" if $DEBUG;
     $insertion_point = $pod;
     $outstr .= $new_pod;
     return $outstr;
@@ -522,14 +583,82 @@ __END_POD__
 
 sub filename_to_classname {
   my ($self, $filename) = @_;
-
   open my $fh, "<", $filename or die "Can't open $filename: $!";
-  
   while (<$fh>) {
-    if (m/^package\s+([A-Za-z0-9_:]+);/) {
-      return $1;
+    return $1 if (m/^package\s+([A-Za-z0-9_:]+);/);
+    if (m/^package\b/) {  # still not immune to "hide from PAUSE" tricks
+      print "  Package hidden with anti-PAUSE tricks in $filename\n" if ($DEBUG);
+      return undef;
+    }
+  }  
+
+  print "  Couldn't find any package statement in $filename\n" if ($DEBUG);
+  return undef;
+}
+
+sub classname_to_filename {
+  my ($self, $classname) = @_;
+  $classname =~ s/\.p(?:m|od)$//i; 
+  return Path::Class::File->new( split(/::|\/|\\/, $classname.'.pm') )->cleanup;
+}
+
+sub classname_to_real_file {
+  my ($self, $classname) = @_;
+  my $filename = $self->classname_to_filename($classname);
+  
+  for (@{ $self->{input_files} }, '') {  # include "current directory" last, wherever that is
+    my $d = -d $_ ? $_ : Path::Class::File->new($_)->dir;
+    my $f = $filename->relative($d)->cleanup;
+    return $f->resolve if (-f $f);
+  }
+  return undef;
+}
+
+sub require_class {
+  my ($self, $src, $classname) = @_;
+
+  $classname ||= $self->filename_to_classname($src) || return undef;
+  $src       ||= $self->classname_to_real_file($classname);
+  
+  # What we had here was hack on top of hack on top of hack, and still didn't work.
+  # Fuckit.  Rewrite.
+  my $class_as_filename = $self->classname_to_filename($classname);
+  
+  # Let's just snuff this one right away
+  no warnings 'redefine';
+
+  local $|=1;
+  my $old_sig_warn = $SIG{__WARN__};
+  local $SIG{__WARN__} = sub {
+    # Still getting these; we need to filter here...
+    return if ($_[0] =~ /^(?:Constant )?[Ss]ubroutine [\w\:]+ redefined /);
+  
+    my $warning = "  While working on $src: ".$_[0];
+    if ($old_sig_warn) { $old_sig_warn->($warning); }
+    else               { warn $warning;             }
+  };
+
+  
+  # Just like require, except without that pesky checking @INC thing,
+  # but making sure we put the "right" thing in %INC.
+  unless (exists $INC{$class_as_filename}) {
+    # Still no source?  Great... we'll have to pray that require will work...
+    print "Still no source found for $classname; forced to use 'require'\n" if ($DEBUG && !$src);
+    my $did_it = $src ? do $src : require $classname;
+    unless ($did_it) {
+      my $err = $@;
+      $err =~ s/ \(\@INC contains: .*\)//;
+      print STDERR "Couldn't autogenerate documentation for $src: $err\n";
+      return undef;
     }
   }
+  # There's what is arguably a bug in perl itself lurking here: Foo.pm
+  # dies during complation (IE not because it wasn't in @INC).  An
+  # undef entry is left in %INC, but it's a READONLY undef, which
+  # means that you can't just assign something else to the slot.
+  $INC{$class_as_filename} = $src unless (exists $INC{$class_as_filename});
+  
+  return $classname;
 }
 
 sub is_ours {
@@ -576,7 +705,7 @@ __END_HEADER__
 }
 
 1;
-
+__END__
 
 =head2 Inline configuration
 
@@ -588,18 +717,13 @@ code:
 
   our %_pod_inherit_config = ( skip_underscored => 0 );
 
-=head2 $DEBUG
-
-In order to get verbose debug information, simply set
-C<$Pod::Inherit::DEBUG> to 1.  Please do this B<before> loading
-Pod::Inherit, so that the requisite debugging modules can be loaded.
-(Which aren't in the dependencies list, in order to keep the
-dependencies list down slightly.  You can figure them out, it's not
-hard.)
-
 =head1 AUTHOR
 
 James Mastros, theorbtwo <james@mastros.biz>
+
+=head1 CONTRIBUTORS
+
+Brendan Byrd, SineSwiper <BBYRD@cpan.org>
 
 =head1 LICENSE
 
