@@ -3,21 +3,23 @@ use lib 't/auxlib';
 use Test::JMM;
 use Test::More 'no_plan';
 use Test::Differences;
+use Test::NoWarnings;
 use Test::Pod;
 use Path::Class::Dir;
+
 use_ok('Pod::Inherit');
-# use Test::NoWarnings;
 
 use lib 't/lib';
 
 ## Remove all existing/old pod files in t/doc
-Path::Class::Dir->new('t/06dir-out')->rmtree;
-Path::Class::Dir->new('t/06dir-out')->mkpath;
+my $dir = Path::Class::Dir->new('t/06dir-out');
+$dir->rmtree;
+$dir->mkpath;
 
 ## Run over entire t/lib dir
 my $pi = Pod::Inherit->new({ 
                             input_files => ["t/lib/"],
-                            out_dir => 't/06dir-out',
+                            out_dir => $dir,
                            });
 
 isa_ok($pi, 'Pod::Inherit');
@@ -34,7 +36,7 @@ sub check_file {
 }
 
 # Check that for each output file, it matches the golden file...
-my @todo = "t/06dir-out";
+my @todo = $dir;
 while (@todo) {
   $_ = shift @todo;
   if (-d $_) {
