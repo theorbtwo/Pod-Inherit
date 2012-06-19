@@ -42,6 +42,7 @@ foreach my $test (@tests) {
         "$class - $testname - out_dir unset");
 
     pod_file_ok("t/lib/${class}.pod", "$class - ${testname} - Test::Pod passes - out_dir unset");
+    unlink("t/lib/${class}.pod");
 }
 
 ## Now we test dumping the output to a separate filetree.
@@ -71,3 +72,4 @@ foreach my $test (@tests) {
     pod_file_ok($outpath, "$class - ${testname} - Test::Pod passes - out_dir set");
 }
 
+Path::Class::Dir->new("t/04files-out/")->rmtree;

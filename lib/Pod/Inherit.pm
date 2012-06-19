@@ -22,7 +22,7 @@ sub Pod::POM::Node::error {
 
 use Path::Class;
 use Scalar::Util 'refaddr';
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 

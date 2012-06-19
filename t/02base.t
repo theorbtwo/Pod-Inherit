@@ -36,6 +36,7 @@ SKIP: {
         do { local (@ARGV, $/) = "t/auxgolden/MooseSub.pod"; <> || 'NO GOLDEN' },
         "MooseSub - Moose extends, existing POD - out_dir unset");
 #  ok(!-e 't/lib/MooseSub.pod', "Moose extends, existing POD");
+  unlink "t/auxlib/MooseSub.pod";
 }
 
 SKIP: {
@@ -47,4 +48,5 @@ SKIP: {
         do { local (@ARGV, $/) = "t/auxgolden/ClassC3Sub.pod"; <> || 'NO GOLDEN' },
         'ClassC3Sub - "use base" Class::C3 class, existing POD - out_dir unset');
 #  ok(!-e 't/lib/ClassC3Sub.pod', '"use base" Class::C3 class, existing POD');
+  unlink "t/auxlib/ClassC3Sub.pod";
 }

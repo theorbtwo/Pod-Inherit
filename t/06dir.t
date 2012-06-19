@@ -77,3 +77,4 @@ while (@todo) {
 
 # ## should we do this with no out_dir as well?
 
+$dir->rmtree;

@@ -80,3 +80,5 @@ while (@todo) {
     ok(-e $outfile, "golden file $_ has matching output");
   }
 }
+
+$dir->rmtree;

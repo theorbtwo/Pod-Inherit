@@ -1,3 +1,24 @@
+0.13
+ - Fix EOL problems that are failing on CPAN
+
+0.12
+ - Add new options test platform
+ - Fix certain options to sanitize much better
+ - Clean up docs for clearer list of inputs/defaults, etc.
+ - Fix require by replacing it with Class::Load
+ - Switch to Module::Install for easier maint
+ - Remove Schema.pm from testing (too many dependencies)
+ - _Privatize private subs
+
+0.11
+ - Add the following config options:
+   - skip_classes
+   - skip_inherits
+   - force_inherits
+   - method_format
+   - debug
+ - Some refactoring
+
 0.09
  - Stop outputting the inherited methods section multiple times.
 
