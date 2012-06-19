@@ -22,7 +22,7 @@ sub Pod::POM::Node::error {
 
 use Path::Class;
 use Scalar::Util 'refaddr';
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 NAME
 
@@ -584,8 +584,8 @@ sub create_pod {
       next if $identify_name eq 'UNIVERSAL';
 
       if ($identify_name ne $parent_class) {
-        warn "Probable unexpected import of $nice_name from $identify_name into $parent_class"
-          if $[ >= 5.010;
+        # warn "Probable unexpected import of $nice_name from $identify_name into $parent_class"
+        #   if $] >= 5.010;
         next;
       }
       # print "$globname $nice_name $identify_name\n";

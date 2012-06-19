@@ -1,3 +1,6 @@
+0.14
+ - Remove "probable unexpected import" warning, per RT #73992
+
 0.13
  - Fix EOL problems that are failing on CPAN
 
