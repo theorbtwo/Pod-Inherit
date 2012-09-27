@@ -12,7 +12,7 @@ use strict;
   
 # Define metadata
 name           'Pod-Inherit';
-perl_version   '5.006';
+perl_version   '5.10.1';
 all_from       'lib/Pod/Inherit.pm';
 
 # Specific dependencies
