@@ -33,6 +33,7 @@ test_requires(
   'Test::Pod::Coverage' => 0,
   'Test::Pod'           => 0,
   'Test::Warn'          => 0,
+  'Test::EOL'           => 0,
 );
 
 WriteAll;
