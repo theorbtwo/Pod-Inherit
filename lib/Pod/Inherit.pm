@@ -22,7 +22,7 @@ sub Pod::POM::Node::error {
 
 use Path::Class;
 use Scalar::Util 'refaddr';
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 
@@ -59,7 +59,8 @@ Pod::Inherit - auto-create POD sections listing inherited methods
         'Class::Accessor::Grouped'
       ]
     },
-    method_format   => 'L<%m|%c/%m>'
+    method_format   => 'L<%m|%c/%m>',
+    dead_links      => '',
     debug           => 1,
   };
 
@@ -255,11 +256,32 @@ section.  The custom variables are:
   %m = method name
   %c = class name
   %% = literal percent sign
-  
+
 Thus, the default just prints out the method name, unaltered.
 
 This string can be used to add method links to the POD files (like
 C<'LZ<><%m|%c/%m>'>), or to change the formatting (like C<'CZ<><%m>'>).
+
+=head4 dead_links
+
+=over
+
+=item B<Input:> $format_string
+
+=item B<Default:> undef
+
+=back
+
+A string with the same format as C<method_format>.  This is the
+string used for methods that don't exist in the inherited module's
+documentation.  A blank string (C<''>) will remove any dead links.
+The default is to not check for dead links.
+
+This option typically only makes sense if C<method_format> is a
+link, but it can be used to automatically remove undocumented
+methods or present them in a different manner.
+
+This feature requires L<Pod::Tree> to be installed.
 
 =head4 debug
 
@@ -299,7 +321,7 @@ sub new {
     require Data::Dump::Streamer;
     Data::Dump::Streamer->import('Dump');
   }
-  
+
   # Accept just a single filename in here -- OR A SINGLE Path::Class::File!
   for (qw/input_files skip_classes skip_inherits/) {
     $args->{$_} = [$args->{$_}] if not ref($args->{$_}) eq 'ARRAY';
@@ -311,21 +333,21 @@ sub new {
   }
 
   my $self = bless($args, $class);
-  
+
   # deep cleaning of the "any" types: skip_classes & force_inherits keys
   @{$self->{skip_classes}} = grep { ref } map { $self->_any_to_type_array($_, 0, 'skip_classes'); } @{$self->{skip_classes}};
 
   if (my $fi = $self->{force_inherits}) {
     $self->{force_inherits_type} = {};  # we can't just put an ARRAYREF on a key
     my @fi_keys = keys %$fi;
-    
+
     foreach my $dest_doc (@fi_keys) {
       my $type_any = $self->_any_to_type_array($dest_doc, 1, 'force_inherits keys');
       unless ($type_any) {
         delete $fi->{$dest_doc};
         next;
       }
-      
+
       my ($type, $any) = @$type_any;
       $self->{force_inherits_type}{$any} = $type;
 
@@ -337,7 +359,9 @@ sub new {
       }
     }
   }
-  
+
+  require Pod::Tree if exists $self->{dead_links};
+
   return $self;
 }
 
@@ -357,20 +381,20 @@ Run the pod creation stage.
 
 sub write_pod {
   my ($self) = @_;
-  
+
   my ($fi, $fit) = ($self->{force_inherits}, $self->{force_inherits_type});
   my @targets = map {
     # The origtarget needs to be a directory; if it's a file, lie and claim to the rest
     # of the code that the user passed the directory containing this file.
     -d $_ ? [$_, $_] : [$_, Path::Class::File->new($_)->dir]
   } @{ $self->{input_files} };
-  
+
   die "no targets" if (!@targets);
-    
+
   while (@targets) {
     my ($target, $origtarget) = @{shift @targets};
     print "target=$target origtarget=$origtarget \n" if ($DEBUG);
-    
+
     my $filename  = (-d $target ? Path::Class::Dir->new($target) : Path::Class::File->new($target))->cleanup->resolve;
     my $classname = $self->_pure_filename_to_classname( $filename->relative($origtarget) );
 
@@ -379,13 +403,13 @@ sub write_pod {
       print "  target skipped per skip_classes: ".(ref $skipped ? $skipped->[1] : $skipped)."\n" if ($DEBUG);
       next;
     }
-    
+
     if (-d $target) {
       print "  directory: adding children as new targets\n" if ($DEBUG);
       unshift @targets, map { [$_, $origtarget] } ($filename->children);
       next;
     }
-    
+
     my $should_process = 0;
     $should_process = 1 if ($target =~ m/\.pm$/);
     if ($target =~ m/\.pod$/) {
@@ -395,16 +419,13 @@ sub write_pod {
         $should_process = 1;
       }
     }
-    
+
     if ($should_process) {
       my $output_filename = $self->{out_dir} ? $filename->relative($origtarget)->absolute($self->{out_dir}) : $filename;
 
       $output_filename =~ s/\.pm$/.pod/;
       $output_filename = Path::Class::File->new($output_filename);
-      
-      my $dir = $output_filename->dir;
-      my $ret = $dir->mkpath;
-      
+
       if ($self->_is_ours($output_filename)) {
         my $allpod = $self->create_pod($target, $origtarget);
         # Don't create the output file if there would be nothing in it!
@@ -412,7 +433,10 @@ sub write_pod {
           print "  not creating empty file $output_filename\n" if ($DEBUG);
           next;
         }
-        
+
+        my $dir = $output_filename->dir;
+        my $ret = $dir->mkpath;
+
         my ($outfh, $oldperm);
         print "  Writing $output_filename\n" if ($DEBUG);
         unless ( $outfh = $output_filename->open('w') ) {
@@ -425,7 +449,7 @@ sub write_pod {
             die "Can't open $output_filename for output: $!";
           }
         }
-        
+
         $outfh->print($allpod);
         $outfh->close;
         if (defined $oldperm) {
@@ -474,7 +498,7 @@ sub create_pod {
 
   my ($fi, $fit) = ($self->{force_inherits}, $self->{force_inherits_type});
   my ($tt_stash, $classname, @isa_flattened);
-  
+
   unless ($src =~ m/\.pod$/) {
     $classname = $tt_stash->{classname} = $self->_require_class($src) || return;
     @isa_flattened = @{mro::get_linear_isa($classname)};
@@ -482,6 +506,7 @@ sub create_pod {
   # here be PODs
   else {
     $classname = $tt_stash->{classname} = $self->_pure_filename_to_classname( $root_dir ? $src->relative($root_dir) : $src );
+    $self->_check_pod_sections($src, $classname);
   }
 
   # Check for force inherits to add
@@ -495,7 +520,7 @@ sub create_pod {
       push @isa_flattened, @{mro::get_linear_isa($class)};
     }
   }
-  
+
   # Now for ones to skip (including its own class)
   foreach my $s ( @{ $self->{skip_inherits} }, $classname ) {
     for (my $i = 0; $i < @isa_flattened; $i++) {
@@ -505,14 +530,21 @@ sub create_pod {
       }
     }
   }
-  
+
   # We can't possibly find anything.  Just short-circuit and save ourselves a lot of trouble.
   if (!@isa_flattened) {
     print "  No parent classes\n" if ($DEBUG);
     return;
   }
   $tt_stash->{isa_flattened} = \@isa_flattened;
-  
+
+  # Read POD sections for new classes
+  if (exists $self->{dead_links}) {
+    foreach my $class (@isa_flattened) {
+      $self->_check_pod_sections(undef, $class);
+    }
+  }
+
   my %seen;
   for my $parent_class (@isa_flattened) {
     print "  Parent class: $parent_class\n" if ($DEBUG);
@@ -526,15 +558,15 @@ sub create_pod {
     if (not exists $local_config->{skip_underscored}) {
       $local_config->{skip_underscored} = $self->{skip_underscored};
     }
-    $local_config->{class_map} ||= $class_map;
+    $local_config->{class_map}  ||= $class_map;
 
     for my $globname (sort keys %$stash) {
       next if ($local_config->{skip_underscored} and $globname =~ m/^_/);
       next if $seen{$globname};
-      
+
       # Skip the typical UPPERCASE sub blocks that aren't really user-friendly methods
       next if ($globname =~ m/^(?:AUTOLOAD|CLONE|DESTROY|BEGIN|UNITCHECK|CHECK|INIT|END)$/);
-      
+
       my $glob = $stash->{$globname};
       # Skip over things that aren't *code* globs, and cache entries.
       # (You might think that ->can will return false for non-code globs.  You'd be right.  It'll return true
@@ -556,7 +588,7 @@ sub create_pod {
         }
       }
       next unless ($exists);
-      
+
       # This should probably be in the template.
       my $nice_name;
       if ($globname eq '()') {
@@ -577,7 +609,7 @@ sub create_pod {
       }
       # Must not be a method, but some other strange beastie.
       next if !$subref;
-      
+
       my $identify_name = Sub::Identify::stash_name($subref);
       # No reason to list it, really.  Then again, no reason not to,
       # really...  Yes there is.  It's just noise for anybody who actually knows perl.
@@ -588,12 +620,41 @@ sub create_pod {
         #   if $] >= 5.010;
         next;
       }
-      # print "$globname $nice_name $identify_name\n";
       # Note that this needs to happen *after* we determine if it's a cache entry, so that we *will* get them later.
       $seen{$globname} = $parent_class;
 #      push @derived, { $parent_class => $nice_name };
 
       my $doc_parent_class = $local_config->{class_map}->{$parent_class} || $parent_class;
+
+      # Dead link checks
+      if (exists $self->{dead_links}) {
+         # Tolerate grandparent documentation for methods (but check parent first)
+         my $found_doc = 0;
+         foreach my $class ($parent_class, @isa_flattened, @{mro::get_linear_isa($parent_class)}) {
+           next if (first { $_ eq $class } @{ $self->{skip_inherits} });
+           my $map_class = $local_config->{class_map}->{$class} || $class;
+
+           # Mapped class might have not been read for POD sections yet
+           $self->_check_pod_sections(undef, $map_class);
+
+           # Found it!
+           if ($self->{pod_sections}{$map_class}{$globname}) {
+             print "    Method documentation on grandparent: $map_class"."::$globname\n"
+               if ($DEBUG && $doc_parent_class ne $map_class);
+
+             $doc_parent_class = $map_class;
+             $found_doc = 1;
+             last;
+           }
+         }
+
+         # Skip over undocumented methods if dead_links is set to ''
+         if ($self->{dead_links} eq '' && !$found_doc) {
+           print "    Skipped due to lack of documentation: $globname\n" if ($DEBUG);
+           next;
+         }
+      }
+
       push @{$tt_stash->{methods}{$doc_parent_class}}, $nice_name;
       splice(@isa_flattened, (firstidx { $_ eq $parent_class } @isa_flattened), 0, $doc_parent_class)
         unless (any {$_ eq $doc_parent_class} @isa_flattened);
@@ -602,28 +663,29 @@ sub create_pod {
 
   # There were parent classes, but we don't inherit any methods from them.  Don't insert an empty section.
   return if !keys %{$tt_stash->{methods}};
-  
+
   # We used to use TT here, but TT doesn't like hash elements that have
   # names beginning with underscores.
-  
+
   my $new_pod = <<'__END_POD__';
  =head1 INHERITED METHODS
- 
+
  =over
- 
+
 __END_POD__
-  
+
   # Indent, so doesn't show up as POD::Inherit's own POD.
   $new_pod =~ s/^ //mg;
-  
+
   for my $class (@{$tt_stash->{isa_flattened}}) {
     next unless ($tt_stash->{methods}{$class});
     $new_pod .= "=item L<$class>\n\n";
-    
+
     # Put in the method format
     $new_pod .= join(", ", map {
       my $method = $_;
-      my $mlf = $self->{method_format};
+      my $mlf = (exists $self->{dead_links} && $self->{dead_links} ne '' && !$self->{pod_sections}{$class}{$method}) ?
+        $self->{dead_links} : $self->{method_format};
       $mlf =~ s/\%m/$method/g;
       $mlf =~ s/\%c/$class/g;
       $mlf =~ s/\%\%/\%/g;
@@ -653,7 +715,7 @@ __END_POD__
   my $pod = $parser->parse_file($src->stringify)  # Make it a string again, because otherwise Pod::Parser gets confused.
     or die "Couldn't parse existing pod in $src: ".$parser->error;
   my $outstr = $self->_get_inherit_header($classname, $src);
-  
+
   # If set, we should go *before* the insertion point.
   # Otherwise we should go *after*.
   my $before;
@@ -664,7 +726,7 @@ __END_POD__
   for (reverse $pod->content) {
     $i--;
     next unless $_->isa('Pod::POM::Node::Head1');
-    
+
     my $title = $_->title;
     # This should be a list of all POD sections that should be "at the end of the file".
     # That is, things that we should go before.
@@ -681,8 +743,8 @@ __END_POD__
       last;
     }
   }
-  
-  
+
+
   if (!$insertion_point and $pod->content) {
     print "  Going at end\n" if $DEBUG;
     $insertion_point = -1;
@@ -718,7 +780,7 @@ sub _file_to_package {
       print "  Package hidden with anti-PAUSE tricks in $file\n" if ($DEBUG);
       return undef;
     }
-  }  
+  }
 
   print "  Couldn't find any package statement in $file\n" if ($DEBUG);
   return undef;
@@ -726,25 +788,25 @@ sub _file_to_package {
 
 sub _pure_filename_to_classname {
   my ($self, $pure_filename) = @_;
-  $pure_filename =~ s/\.p(?:m|od)$//i; 
+  $pure_filename =~ s/\.p(?:m|od)$//i;
   return join '::', split(/::|\/|\\/, $pure_filename);
 }
 
 sub _any_to_pm_filename {
   my ($self, $any) = @_;
-  $any =~ s/\.p(?:m|od)$//i; 
+  $any =~ s/\.p(?:m|od)$//i;
   return Path::Class::File->new( split(/::|\/|\\/, $any.'.pm') )->cleanup;
 }
 
 sub _any_to_real_file {
   my ($self, $any, $try_pods, $try_dirs) = @_;
   my $filename = $self->_any_to_pm_filename($any);
-  
+
   foreach my $d (@{ $self->{input_files} }, '.') {  # include "current directory" last, wherever that is
     my $pd = -d $d ? $d : Path::Class::File->new($d)->dir;
     my $f = Path::Class::File->new($pd, $filename)->cleanup;
     return $f->resolve if (-f $f);
-    
+
     next unless $try_pods;
     $f =~ s/m$/od/;
     return Path::Class::File->new($f)->resolve if (-f $f);
@@ -761,11 +823,11 @@ sub _any_to_type_array {
   return undef unless defined $any;
   my $type;
   $value_type = $value_type ? "[Found in $value_type] " : '';
-  
+
   # figure out what 'any' is
   my $crossplat_any = Path::Class::File->new( split(/\/|\\/, $any) )->cleanup->stringify;
   my $real_file     = $self->_any_to_real_file($any, $try_pods, 1);
-  
+
   if    ($any =~ /::/)            { $type = 'c'; }  # has to be a class with ::
   elsif ($any =~ /\.p(?:m|od)$/i) { $type = 'f'; }  # has to be a file with .pm/.pod
   elsif (-d $crossplat_any)       { $type = 'd'; }  # might also be a class, but take priority on existing dirs relative to .
@@ -776,13 +838,13 @@ sub _any_to_type_array {
       return undef;
     }
     $type = -d $real_file ? 'd' : 'f';
-  }  
+  }
   elsif ($real_file)              { $type = 'c'; }  # this leaves top-level classes, so check to see if it exists
   else {
     warn $value_type."Cannot even guess to what this is, as it doesn't exist anywhere: $any";
     return undef;
   }
-  
+
   # classes should remain as-is; file/dir should match the exact file
   return [$type, ($type eq 'c') ? $any : ($real_file || $crossplat_any)];
 }
@@ -791,7 +853,7 @@ sub _match_filename_to_type_array {
   my ($self, $classname, $full_filename, $type_any) = @_;
   $type_any = $self->_any_to_type_array($type_any) unless ref $type_any;  # this should have already been done...
   my ($type, $any) = @$type_any;
-  
+
   return     $classname eq     $any    if ($type eq 'c');
   return $full_filename eq     $any    if ($type eq 'f');
   return $full_filename =~ /^\Q$any\E/ if ($type eq 'd');  # treat these as recursive matches
@@ -803,11 +865,11 @@ sub _require_class {
 
   $classname ||= $self->_file_to_package($src) || return undef;
   $src       ||= $self->_any_to_real_file($classname);
-  
+
   # What we had here was hack on top of hack on top of hack, and still didn't work.
   # Fuckit.  Rewrite.
   my $class_as_filename = $self->_any_to_pm_filename($classname);
-  
+
   # Let's just snuff this one right away
   no warnings 'redefine';
 
@@ -816,11 +878,11 @@ sub _require_class {
   local $SIG{__WARN__} = sub {
     # Still getting these; we need to filter here...
     return if ($_[0] =~ /^(?:Constant )?[Ss]ubroutine [\w\:]+ redefined /);
-  
+
     my $warning = "  While loading $src: ".$_[0];
     $old_sig_warn ? $old_sig_warn->($warning) : warn $warning;
   };
-  
+
   # Just like require, except without that pesky checking @INC thing,
   # but making sure we put the "right" thing in %INC.
   unless (exists $INC{$class_as_filename}) {
@@ -831,7 +893,7 @@ sub _require_class {
       my $err = $@;
       $err =~ s/ \(\@INC contains: .*\)//;
       $SIG{__WARN__} = $old_sig_warn;  # only need it for the do/require
-      
+
       warn "Couldn't autogenerate documentation for $src: $err\n";
       return undef;
     }
@@ -841,8 +903,42 @@ sub _require_class {
   # undef entry is left in %INC, but it's a READONLY undef, which
   # means that you can't just assign something else to the slot.
   $INC{$class_as_filename} = $src unless (exists $INC{$class_as_filename});
-  
+
+  # While we are here, check the POD text for sections
+  $self->_check_pod_sections($src, $classname);
+
   return $classname;
+}
+
+sub _check_pod_sections {
+  my ($self, $src, $classname) = @_;
+  return 0 unless ($classname);
+  return 0 unless (exists $self->{dead_links} && not $self->{pod_sections}{$classname});
+
+  $src ||=
+    $INC{ $self->_any_to_pm_filename($classname) } ||
+    $self->_any_to_real_file($classname, 1, 1) ||
+    return 0
+  ;
+
+  $self->{pod_sections}{$classname} = {};
+
+  my $p = Pod::Tree->new;
+  $p->load_file($src);
+  $p->walk(sub {
+    if ($_[0]->is_command and grep { $_[0]->$_ } ("is_c_item", map { "is_c_head$_" } 1..4) ) {
+      my $hdr = $_[0]->get_deep_text;
+      $hdr =~ s/^\s+|\s+$//g;
+      $self->{pod_sections}{$classname}{$hdr} = 1;
+    }
+    1;
+  });
+  if ($DEBUG) {
+    print "  Found ".scalar(keys $self->{pod_sections}{$classname})." POD sections in $classname:\n";
+    print "    ".join(', ', keys $self->{pod_sections}{$classname})."\n";
+  }
+
+  return 1;
 }
 
 sub _is_ours {
