@@ -34,9 +34,7 @@
 \bcover_db\b
 
 \.tar\.gz$
-^t/04files-out
-^t/06dir-out
-^t/07options-out
+^t/output
 
 ^cifs
 lib/Pod/Inherit.pm.1

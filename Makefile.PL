@@ -9,7 +9,7 @@ use 5.006;
 use inc::Module::Install;
 use warnings;
 use strict;
-  
+
 # Define metadata
 name           'Pod-Inherit';
 perl_version   '5.10.1';
@@ -34,6 +34,10 @@ test_requires(
   'Test::Pod'           => 0,
   'Test::Warn'          => 0,
   'Test::EOL'           => 0,
+);
+
+recommends(
+  'Pod::Tree' => 0,
 );
 
 WriteAll;
