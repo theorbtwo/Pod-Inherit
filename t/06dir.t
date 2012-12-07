@@ -12,12 +12,12 @@ use_ok('Pod::Inherit');
 use lib 't/lib';
 
 ## Remove all existing/old pod files in t/doc
-my $dir = Path::Class::Dir->new('t/06dir-out');
+my $dir = Path::Class::Dir->new('t/output/files');
 $dir->rmtree;
 $dir->mkpath;
 
 ## Run over entire t/lib dir
-my $pi = Pod::Inherit->new({ 
+my $pi = Pod::Inherit->new({
                             input_files => ["t/lib/"],
                             out_dir => $dir,
                            });
@@ -27,15 +27,15 @@ $pi->write_pod();
 
 sub check_file {
   my ($outfile) = @_;
-  (my $goldenfile = $outfile) =~ s!06dir-out!golden!;
-  
+  (my $blfile = $outfile) =~ s!output!baseline!;
+
   eq_or_diff(do {local (@ARGV, $/) = $outfile; scalar <> || 'NO OUTPUT?'},
-             do {local (@ARGV, $/) = $goldenfile; scalar <> || 'NO GOLDEN'},
+             do {local (@ARGV, $/) = $blfile;  scalar <> || 'NO BASELINE'},
              "Running on directory: $outfile");
   pod_file_ok($outfile, "Running on directory: $outfile - Test::Pod");
 }
 
-# Check that for each output file, it matches the golden file...
+# Check that for each output file, it matches the baseline file...
 my @todo = $dir;
 while (@todo) {
   $_ = shift @todo;
@@ -46,8 +46,8 @@ while (@todo) {
   }
 }
 
-# ...and for each golden file, there is a coorosponding output file.
-@todo = "t/golden";
+# ...and for each baseline file, there is a corresponding output file.
+@todo = "t/baseline/files";
 while (@todo) {
   $_ = shift @todo;
   if (/~$/) {
@@ -57,22 +57,22 @@ while (@todo) {
   } elsif (-d $_) {
     push @todo, glob("$_/*");
   } else {
-    (my $outfile = $_) =~ s/golden/06dir-out/;
-    ok(-e $outfile, "golden file $_ has matching output");
+    (my $outfile = $_) =~ s!baseline!output!;
+    ok(-e $outfile, "baseline file $_ has matching output");
   }
 }
 
 ## test lack of foo.txt in output dir
 
 
-# foreach my $outfile (<t/06dir-out/*.pod>) {
-#   my $origfile = Path::Class::Dir->new("t/golden")->file(Path::Class::File->new($outfile)->basename);
-  
+# foreach my $outfile (<t/output/files/*.pod>) {
+#   my $origfile = Path::Class::Dir->new("t/baseline")->file(Path::Class::File->new($outfile)->basename);
+
 #   eq_or_diff( do { local (@ARGV, $/) = "$outfile"; scalar <> },
 #               do { local (@ARGV, $/) = "$origfile"; scalar <> },
 #               "Running on directory: $outfile - matches");
-  
-#   pod_file_ok("$outfile", "Running on directory: $outfile - Test::Pod passes");   
+
+#   pod_file_ok("$outfile", "Running on directory: $outfile - Test::Pod passes");
 # }
 
 # ## should we do this with no out_dir as well?

@@ -934,8 +934,8 @@ sub _check_pod_sections {
     1;
   });
   if ($DEBUG) {
-    print "  Found ".scalar(keys $self->{pod_sections}{$classname})." POD sections in $classname:\n";
-    print "    ".join(', ', keys $self->{pod_sections}{$classname})."\n";
+    print "  Found ".scalar(keys %{$self->{pod_sections}{$classname}})." POD sections in $classname:\n";
+    print "    ".join(', ', keys %{$self->{pod_sections}{$classname}})."\n";
   }
 
   return 1;

@@ -12,7 +12,7 @@ use_ok('Pod::Inherit');
 use lib 't/lib';
 
 ## Remove all existing/old pod files in t/doc
-my $dir = Path::Class::Dir->new('t/output/options');
+my $dir = Path::Class::Dir->new('t/output/dead_links');
 $dir->rmtree;
 $dir->mkpath;
 
@@ -38,7 +38,8 @@ my $pi = Pod::Inherit->new({
       'InlineBaseConfig'
     ]
   },
-  method_format   => 'L<%m|%c/%m>'
+  dead_links      => '',
+  method_format   => 'L<%m|%c/%m>',
 });
 
 isa_ok($pi, 'Pod::Inherit');
@@ -66,7 +67,7 @@ while (@todo) {
 }
 
 # ...and for each baseline file, there is a corresponding output file.
-@todo = "t/baseline/options";
+@todo = "t/baseline/dead_links";
 while (@todo) {
   $_ = shift @todo;
   if (/~$/) {
