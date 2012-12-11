@@ -604,7 +604,8 @@ sub create_pod {
       my $subref = $classname->can($globname);
       if ($force_inherits && !$subref) {  # forced inherits may be the ones with the methods...
         foreach my $class (@$force_inherits) {
-          $subref //= $class->can($globname);
+          $subref = $class->can($globname)
+            unless defined $subref;
         }
       }
       # Must not be a method, but some other strange beastie.
