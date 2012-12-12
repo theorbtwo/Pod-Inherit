@@ -36,8 +36,4 @@ test_requires(
   'Test::EOL'           => 0,
 );
 
-recommends(
-  'Pod::Tree' => 0,
-);
-
 WriteAll;
