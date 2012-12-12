@@ -46,7 +46,7 @@ sub Pod::POM::Node::error {
 
 use Path::Class;
 use Scalar::Util 'refaddr';
-our $VERSION = '0.16';
+our $VERSION = '0.90';
 
 =head1 NAME
 
@@ -393,7 +393,7 @@ sub new {
 
 =item B<Arguments:> none
 
-=item B<Return Value:> none
+=item B<Return Value:> 1 on success
 
 =back
 
@@ -480,6 +480,8 @@ sub write_pod {
       }
     }
   }
+
+  return 1;
 }
 
 =pod

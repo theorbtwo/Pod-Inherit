@@ -1,3 +1,20 @@
+0.90
+ - Upgrade of version to 0.90 since we are basically production in DBIC
+ - Bring code back to 5.8 capatibility (fixes RT#81903)
+ - Fix _check_pod_sections to work without Pod::Tree requirement (fixes RT#81896)
+ - Add return value for write_pod (fixes RT#81905)
+
+0.16
+ - Move "golden" test files to baseline/
+ - Add new dead_links test
+ - Fix 5.12-- hashref issue
+ - Fix MANIFEST
+ - Correct Pod::Tree requirement with dead_links test
+
+0.15
+ - Add new dead_links option
+ - Fix overzealous mkpath
+
 0.14
  - Remove "probable unexpected import" warning, per RT #73992
 
@@ -60,9 +77,9 @@
    Test::Kwalitee.
 
 0.02
- - Version bump because of a stupid error uploading to PAUSE... the kind of 
+ - Version bump because of a stupid error uploading to PAUSE... the kind of
    stupid error that you can't just fix and reupload, because PAUSE doesn't
-   let you overwrite files.   
+   let you overwrite files.
 
 0.01
  - First version
