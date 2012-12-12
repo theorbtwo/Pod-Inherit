@@ -3,8 +3,6 @@
 ### TODO: This should probably be its own distro ###
 package Pod::POM::View::TextStrip;
 
-our $VERSION = 0.1;
-
 use parent 'Pod::POM::View::Text';
 
 sub view_seq_bold   { $_[1] }
