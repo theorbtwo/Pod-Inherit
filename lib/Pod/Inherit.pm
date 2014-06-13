@@ -44,7 +44,7 @@ sub Pod::POM::Node::error {
 
 use Path::Class;
 use Scalar::Util 'refaddr';
-our $VERSION = '0.90';
+our $VERSION = '0.91';
 
 =head1 NAME
 
