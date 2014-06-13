@@ -1,51 +1,28 @@
-
-#!start included /usr/share/perl/5.10/ExtUtils/MANIFEST.SKIP
-# Avoid version control files.
-RCS
-CVS
-SCCS
-*,v
-.svn/
-.git
-_darcs
-
-# Avoid Makemaker generated and utility files.
+MANIFEST
 MANIFEST.bak
 Makefile
-blib/
-MakeMaker-*
-pm_to_blib.ts
-pm_to_blib
-# 6.18 through 6.25 generated this
-blibdirs.ts
-
-# Avoid Module::Build generated and utility files.
+Makefile.old
 Build
+Build.bat
+META.*
+MYMETA.*
+.build/
 _build/
+cover_db/
+blib/
+inc/
+.lwpcookies
+.last_cover_stats
+nytprof.out
+pod2htm*.tmp
+pm_to_blib
+blibdirs.ts
+Pod-Inherit-*
+Pod-Inherit-*.tar.gz
 
-# Avoid temp and backup files.
-*~
-*.old
-*#
-*.#
-*.bak
-
-# Avoid Devel::Cover files.
-cover_db
-#!end included /usr/share/perl/5.10/ExtUtils/MANIFEST.SKIP
-
-*.tar.gz
 t/*-out
 Debian_CPANTS.txt
 Debian_CPANTS.txt-*
 
-cifs*
-lib/Pod/Inherit.pm.1
-lib/Pod/Inherit.pm.2
-
-Pod-Inherit-*
-t/06dir-out/
 t/lib/*.pod
 t/auxlib/*.pod
-MYMETA.json
-MYMETA.yml

@@ -3,7 +3,7 @@ use lib 't/auxlib';
 use Test::JMM;
 use Test::More 'no_plan';
 use Test::Differences;
-use Test::NoWarnings;
+#use Test::NoWarnings;
 use Test::Pod;
 use Path::Class::Dir;
 
@@ -12,15 +12,34 @@ use_ok('Pod::Inherit');
 use lib 't/lib';
 
 ## Remove all existing/old pod files in t/doc
-my $dir = Path::Class::Dir->new('t/output/files');
+my $dir = Path::Class::Dir->new('t/output/options');
 $dir->rmtree;
 $dir->mkpath;
 
-## Run over entire t/lib dir
+## Run over entire t/lib dir, now with a bunch of options
 my $pi = Pod::Inherit->new({
-                            input_files => ["t/lib/"],
-                            out_dir => $dir,
-                           });
+  input_files      => ["t/lib/"],
+  out_dir          => $dir,
+  skip_underscored => 0,
+  class_map        => {
+    'InlineBaseConfig'  => 'InlineSubConfig',
+    'OverloadBaseClass' => 'OverloadSubClass',
+  },
+  skip_classes    => [
+    't/lib/OverrideDoubleSubClass.pm',
+    'OverrideSubClass',
+    't/lib/Deep',
+  ],
+  skip_inherits   => 'SimpleBaseClass',
+  force_inherits  => {
+    't/lib/MooseSub.pod' => 'Deep::Name::Space::Sub',
+    'ClassC3Sub' => [
+      'Deep::Name::Space::Base',
+      'InlineBaseConfig'
+    ]
+  },
+  method_format   => 'L<%m|%c/%m>'
+});
 
 isa_ok($pi, 'Pod::Inherit');
 $pi->write_pod();
@@ -47,7 +66,7 @@ while (@todo) {
 }
 
 # ...and for each baseline file, there is a corresponding output file.
-@todo = "t/baseline/files";
+@todo = "t/baseline/options";
 while (@todo) {
   $_ = shift @todo;
   if (/~$/) {
@@ -61,20 +80,5 @@ while (@todo) {
     ok(-e $outfile, "baseline file $_ has matching output");
   }
 }
-
-## test lack of foo.txt in output dir
-
-
-# foreach my $outfile (<t/output/files/*.pod>) {
-#   my $origfile = Path::Class::Dir->new("t/baseline")->file(Path::Class::File->new($outfile)->basename);
-
-#   eq_or_diff( do { local (@ARGV, $/) = "$outfile"; scalar <> },
-#               do { local (@ARGV, $/) = "$origfile"; scalar <> },
-#               "Running on directory: $outfile - matches");
-
-#   pod_file_ok("$outfile", "Running on directory: $outfile - Test::Pod passes");
-# }
-
-# ## should we do this with no out_dir as well?
 
 $dir->rmtree;

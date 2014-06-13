@@ -33,9 +33,10 @@ SKIP: {
   $output =~ s/=item L<Moose::Object>\n\n(.+)/=item L<Moose::Object>\n\n(some methods here)/;
   eq_or_diff(
         $output,
-        do { local (@ARGV, $/) = "t/auxgolden/MooseSub.pod"; <> || 'NO GOLDEN' },
+        do { local (@ARGV, $/) = "t/baseline/auxlib/MooseSub.pod"; <> || 'NO BASELINE' },
         "MooseSub - Moose extends, existing POD - out_dir unset");
 #  ok(!-e 't/lib/MooseSub.pod', "Moose extends, existing POD");
+  unlink "t/auxlib/MooseSub.pod";
 }
 
 SKIP: {
@@ -43,8 +44,9 @@ SKIP: {
   my $pi_c3 = Pod::Inherit->new({ input_files => [ 't/auxlib/ClassC3Sub.pm' ] });
   $pi_c3->write_pod;
   eq_or_diff(
-        do { local (@ARGV, $/) = "t/auxlib/ClassC3Sub.pod"; <> || 'NO OUTPUT' },
-        do { local (@ARGV, $/) = "t/auxgolden/ClassC3Sub.pod"; <> || 'NO GOLDEN' },
+        do { local (@ARGV, $/) = "t/auxlib/ClassC3Sub.pod";          <> || 'NO OUTPUT' },
+        do { local (@ARGV, $/) = "t/baseline/auxlib/ClassC3Sub.pod"; <> || 'NO BASELINE' },
         'ClassC3Sub - "use base" Class::C3 class, existing POD - out_dir unset');
 #  ok(!-e 't/lib/ClassC3Sub.pod', '"use base" Class::C3 class, existing POD');
+  unlink "t/auxlib/ClassC3Sub.pod";
 }

@@ -1,7 +1,7 @@
 =for comment POD_DERIVED_INDEX_GENERATED
 The following documentation is automatically generated.  Please do not edit
-this file, but rather the original, inline with SimpleSubClass
-at t/lib/SimpleSubClass.pm
+this file, but rather the original, inline with _NotShownSubClass
+at t/lib/_NotShownSubClass.pm
 (on the system that originally ran this).
 If you do edit this file, and don't want your changes to be removed, make
 sure you change the first line.
@@ -12,9 +12,9 @@ sure you change the first line.
 
 =over 4
 
-=item L<SimpleBaseClass>
+=item L<_NotShownBaseClass>
 
-mymethod
+L<show_this|_NotShownBaseClass/show_this>
 
 =back
 

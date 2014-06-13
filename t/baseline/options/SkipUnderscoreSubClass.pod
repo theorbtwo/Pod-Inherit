@@ -1,7 +1,7 @@
 =for comment POD_DERIVED_INDEX_GENERATED
 The following documentation is automatically generated.  Please do not edit
-this file, but rather the original, inline with Deep::Name::Space::Sub
-at t/lib/Deep/Name/Space/Sub.pm
+this file, but rather the original, inline with SkipUnderscoreSubClass
+at t/lib/SkipUnderscoreSubClass.pm
 (on the system that originally ran this).
 If you do edit this file, and don't want your changes to be removed, make
 sure you change the first line.
@@ -12,9 +12,9 @@ sure you change the first line.
 
 =over 4
 
-=item L<Deep::Name::Space::Base>
+=item L<SkipUnderscoreBaseClass>
 
-from_base
+L<_hide_this|SkipUnderscoreBaseClass/_hide_this>, L<show_this|SkipUnderscoreBaseClass/show_this>
 
 =back
 
