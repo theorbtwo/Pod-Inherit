@@ -380,8 +380,6 @@ sub new {
     }
   }
 
-  require Pod::Tree if exists $self->{dead_links};
-
   return $self;
 }
 

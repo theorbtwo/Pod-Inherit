@@ -3,11 +3,7 @@ use lib 't/auxlib';
 use Class::Load;
 
 use Test::JMM;
-use Test::More
-   Class::Load::load_optional_class('Pod::Tree') ?
-   ('no_plan') :
-   ( skip_all => 'Pod::Tree not installed; skipping' )
-;
+use Test::More ('no_plan');
 
 use Test::Differences;
 #use Test::NoWarnings;
