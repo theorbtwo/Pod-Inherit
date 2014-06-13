@@ -1,3 +1,6 @@
+0.91
+ - Change Path::Class dep to 0.31 (fixes RT#83707)
+
 0.90
  - Upgrade of version to 0.90 since we are basically production in DBIC
  - Bring code back to 5.8 capatibility (fixes RT#81903)

@@ -18,7 +18,7 @@ all_from       'lib/Pod/Inherit.pm';
 # Specific dependencies
 requires(
   'MRO::Compat'    => 0,
-  'Path::Class'    => 0,
+  'Path::Class'    => 0.31,
   'Pod::POM'       => 0,
   'Sub::Identify'  => 0,
   'Class::Load'    => 0,
