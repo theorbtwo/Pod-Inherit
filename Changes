@@ -1,5 +1,6 @@
 0.91
  - Change Path::Class dep to 0.31 (fixes RT#83707)
+ - Move author tests to xt/ (fixes RT#83708)
 
 0.90
  - Upgrade of version to 0.90 since we are basically production in DBIC

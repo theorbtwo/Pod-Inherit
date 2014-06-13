@@ -12,10 +12,7 @@ Makefile.PL
 MANIFEST         This list of files
 META.yml
 README
-t/01kwalitee.t
 t/02base.t
-t/03pod-coverage.t
-t/03pod.t
 t/04files.t
 t/05not_ours.t
 t/06dir.t
@@ -74,3 +71,6 @@ t/baseline/options/SkipUnderscoreSubClass.pod
 t/baseline/dead_links/_NotShownSubClass.pod
 t/baseline/dead_links/ClassC3Sub.pod
 t/baseline/dead_links/MooseSub.pod
+xt/01kwalitee.t
+xt/03pod-coverage.t
+xt/03pod.t
